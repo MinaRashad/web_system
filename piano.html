@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Center vertically */
+  }
+
+  .piano {
+    display: flex;
+  }
+  .key {
+    width: 50px;
+    height: 150px;
+    border: 1px solid black;
+    margin: 2px;
+    text-align: center;
+    cursor: pointer;
+    background-color: white; /* White keys */
+  }
+
+  .key.black {
+    width: 30px;
+    height: 100px;
+    background-color: black; /* Black keys */
+    color: white;
+    margin-left: -10px;
+    margin-right: -10px;
+    z-index: 2;
+  }
+
+  .key.active { /* Highlight active/pressed key */
+    background-color: rgb(255, 238, 81); /* Color for white keys */
+  }
+  .key.black.active {
+    background-color: rgb(119, 111, 36); /* Color for black keys */
+  }
+
+  .controls {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .last-notes {
+    font-family: monospace;
+    margin-top: 10px;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 7vh;
+    width: 100%;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="piano"></div>
+<div class="controls">
+    <button id="recordBtn">Record</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="saveBtn" disabled>Save</button>
+  </div>
+  <div class="last-notes"></div>
+
+<script>
+  const piano = document.querySelector('.piano');
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  
+  const recordBtn = document.getElementById('recordBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const lastNotesDisplay = document.querySelector('.last-notes');
+  
+  let isRecording = false;
+  let recordedNotes = [];
+  let lastNotes = [];
+
+
+  // Create piano keys
+  const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const keyMap = {
+    "q": 48, "w": 49, "e": 50, "r": 51, "t": 52, 
+    "y": 53, "u": 54, "i": 55, "o": 56, "p": 57,
+    "[": 58, "]": 59
+  };
+
+  Object.keys(keyMap).forEach((key)=>{
+
+    keyMap[key] = {isPressed:false,note:keyMap[key]}
+})
+
+  for (let i = 0; i < notes.length; i++) {
+    const key = document.createElement('div');
+    key.classList.add('key');
+    if (["C#", "D#", "F#", "G#", "A#"].includes(notes[i])) {
+      key.classList.add('black');
+    }
+    key.textContent = notes[i];
+    key.dataset.note = notes[i]; // Store note in data attribute
+
+    piano.appendChild(key);
+  }
+
+  // Play note function
+// Play note function (modified)
+function playNote(note) {
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.type = 'triangle'; // Triangle wave is closer to a piano
+    oscillator.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
+
+    // Piano-like envelope
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime); // Start at 0
+    gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.01); // Fast attack
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1); // Slow decay
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 2); // Adjust stop time for longer decay
+  }
+
+//   // Event listener for key clicks
+//   piano.addEventListener('click', (event) => {
+//     if (event.target.classList.contains('key')) {
+//       const note = event.target.dataset.note;
+//       playNote(notes.indexOf(note) + 48); // Convert note to MIDI number
+//     }
+//   });
+
+  // Event listeners
+  piano.addEventListener('mousedown', handleNotePlay);
+
+  piano.addEventListener('mouseup', handleNoteRelease);
+
+  document.addEventListener('keydown', handleNotePlay);
+
+  document.addEventListener('keyup', handleNoteRelease);
+
+  function startRecording() {
+    isRecording = true;
+    recordedNotes = []; // Clear previous recordings
+    lastNotes = []; // Clear last notes display
+    recordBtn.disabled = true;
+    stopBtn.disabled = false;
+    saveBtn.disabled = false;
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    recordBtn.disabled = false;
+    stopBtn.disabled = true;
+    saveBtn.disabled = false;
+  }
+
+/**
+ * Save the recorded notes as a plain text file.
+ */
+ function saveRecording() {
+  const recordingData = recordedNotes.join(' '); // Convert to string
+  const blob = new Blob([recordingData], {type: 'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'recording.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+  function handleNotePlay(event) {
+    if (event.target.classList.contains('key') || (event.type === 'keydown' && keyMap[event.key.toLowerCase()] && !keyMap[event.key.toLowerCase()].isPressed))
+     {
+      const note = event.target.dataset.note || notes[keyMap[event.key.toLowerCase()].note - 48];
+      const midiNote = notes.indexOf(note) + 48;
+      playNote(midiNote);
+      if (isRecording) {
+        recordedNotes.push(note); // Add to recording
+        lastNotes.push(note); // Add to last notes
+        if (lastNotes.length > 15) lastNotes.shift(); // Keep only last 15
+        lastNotesDisplay.textContent = lastNotes.join(' ');
+      }
+      if(event.type === 'keydown' && keyMap[event.key.toLowerCase()]) {
+        keyMap[event.key.toLowerCase()].isPressed = true;
+        // get key node
+        const keyNode = document.querySelector(`[data-note="${note}"]`);
+        keyNode.classList.add('active');    
+      }
+      else event.target.classList.add('active'); 
+    }
+  }
+
+  function handleNoteRelease(event) {
+    if (event.target.classList.contains('key') || (event.type === 'keyup' && keyMap[event.key.toLowerCase()])) {
+      const note = event.target.dataset.note || notes[keyMap[event.key.toLowerCase()].note - 48];
+      document.querySelector(`[data-note="${note}"]`).classList.remove('active');
+      if(event.type === 'keyup' && keyMap[event.key.toLowerCase()]) {
+            keyMap[event.key.toLowerCase()].isPressed = false;
+      }
+    }
+  }
+
+  
+  recordBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+  saveBtn.addEventListener('click', saveRecording);
+</script>
+
+</body>
+</html>

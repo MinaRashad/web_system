@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ear Test</title>
+  <style>
+body { 
+      display: flex; 
+      flex-direction: column; /* Stack elements vertically */
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      margin: 0; 
+      font-family: sans-serif;
+      background-color: #222; /* Dark grey background */
+      color: white;          /* White text color */
+    }
+
+    #startButton {
+      background-color: #FF6600; /* Orange button */
+      color: white;
+      border: none;
+      padding: 20px 40px;
+      font-size: 24px;
+      cursor: pointer;
+      border-radius: 8px;    /* Rounded corners */
+    }
+
+    #frequencyDisplay {
+      font-size: 48px;
+      margin-top: 20px;
+    }
+
+    #resultsMessage { /* New element for the results message */
+      font-size: 20px;
+      margin-top: 40px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="startButton">Test</button>
+  <div id="frequencyDisplay"></div>
+  <div id="resultsMessage"></div> 
+
+
+  <script>
+    const startButton = document.getElementById("startButton");
+    const frequencyDisplay = document.getElementById("frequencyDisplay");
+    const resultsMessageElement = document.getElementById("resultsMessage");
+
+
+    let audioContext, oscillator, currentFrequency = 20, intervalId;
+    let testingEar = "left"; // Start with the left ear
+
+
+     // Statistical parameters (replace with actual data when available)
+        const averageMaxHearing = 17000; // Hz
+        const stdDev = 1000;            // Hz
+        const alpha = 0.05;             // Significance level
+
+    // Normal distribution CDF approximation (JavaScript doesn't have scipy.stats.norm.cdf)
+    function normalCDF(x) {
+        const a1 =  0.254829592;
+        const a2 = -0.284496736;
+        const a3 =  1.421413741;
+        const a4 = -1.453152027;
+        const a5 =  1.061405429;
+        const p  =  0.3275911;
+        const sign = x < 0 ? -1 : 1;
+        x = Math.abs(x)/Math.sqrt(2.0);
+        const t = 1.0/(1.0 + p*x);
+        const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+        return 0.5*(1.0 + sign*y);
+    }
+
+
+    startButton.addEventListener("click", () => {
+      if (audioContext) { // Test already running
+        clearInterval(intervalId);
+        oscillator.stop();
+        audioContext.close();
+        audioContext = null;
+        startButton.textContent = "Start";
+
+
+        // Check if both ears have been tested
+      if (testingEar === "left") {
+        // Switch to the right ear and restart
+        testingEar = "right";
+        startButton.textContent = "Start Right Ear Test";
+        frequencyDisplay.textContent = "";
+        resultsMessageElement.textContent = "";
+      }
+
+      } else { // Start the test
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        oscillator = audioContext.createOscillator();
+        oscillator.type = "sine"; // Pure sine wave sound
+        oscillator.connect(audioContext.destination);
+        // Create a StereoPannerNode to control balance
+        // const panner = audioContext.createStereoPanner();
+        // oscillator.connect(panner);
+        // panner.connect(audioContext.destination);
+
+        // // Set pan based on the testing ear
+        // panner.pan.value = testingEar === "left" ? -1 : 1;
+
+        // Start the test
+        
+        
+
+        intervalId = setInterval(() => {
+          currentFrequency += 3;
+          console.log(currentFrequency);
+          oscillator.frequency.setValueAtTime(currentFrequency, audioContext.currentTime);
+          frequencyDisplay.textContent = currentFrequency + " Hz";
+        }, 10); // Increase frequency every 10ms
+
+        oscillator.start();
+        startButton.textContent = "End";
+      }
+
+      if (!audioContext) { // After test ends
+      const zScore = (currentFrequency - averageMaxHearing) / stdDev;
+      console.log(zScore);
+      const pValue = normalCDF(zScore); // One-tailed p-value (lower)
+      console.log(pValue);
+      let message = `You heard up to ${currentFrequency} Hz. That's more than ${(normalCDF(zScore) * 100).toFixed(1)}% of people! `;
+
+      // p score is either less than 0.025 or greater than 0.975 for a two-tailed test
+        if (pValue < alpha / 2 || pValue > 1 - alpha / 2) {
+            if(zScore > 0) {
+                message += " Wow! That's almost a super power!"
+            } else {
+                message += " You might need to see a doctor though, that's quite low!"
+            }
+        } else {
+            message += " You are healthy!"
+        }
+
+        resultsMessageElement.textContent = message;
+    }
+    });
+  </script>
+
+</body>
+</html>

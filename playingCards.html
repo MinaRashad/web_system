@@ -1,0 +1,347 @@
+<html>
+
+
+<body>
+<script>
+// Canvas Setup
+const canvas = document.createElement('canvas');
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+
+// Calculate Card Dimensions
+const screenHeight = window.innerHeight;
+const cardHeight = 0.4 * screenHeight; // 40% of screen height
+const cardWidth = (2.5 / 3.5) * cardHeight;
+const cornerRadius = 0.1 * Math.min(cardWidth, cardHeight); // 10% of smaller dimension
+
+// Adjust Canvas Size
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+
+// Drawing Functions
+function drawHeart(x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.4);
+    ctx.bezierCurveTo(x, y, x - size * 0.5, y, x - size * 0.5, y + size * 0.4);
+    ctx.bezierCurveTo(x - size * 0.5, y + size * 0.8, x, y + size * 0.8, x, y + size);
+    ctx.bezierCurveTo(x, y + size * 0.8, x + size * 0.5, y + size * 0.8, x + size * 0.5, y + size * 0.4);
+    ctx.bezierCurveTo(x + size * 0.5, y, x, y, x, y + size * 0.4);
+    ctx.fill();
+}
+
+function drawDiamond(x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - size / 2, y + size / 2);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x + size / 2, y + size / 2);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawClub(x, y, size) {
+    ctx.beginPath();
+    ctx.arc(x, y-size*0.2, size * 0.3, 0, 2 * Math.PI); // Bottom circle
+    ctx.lineTo(x, y); // Line to center
+    ctx.arc(x - size * 0.3, y + size*0.3, size * 0.3, 0, 2 * Math.PI); // Left circle
+    ctx.lineTo(x, y); // Line to center
+    ctx.arc(x + size * 0.3, y + size*0.3 , size * 0.3, 0, 2 * Math.PI); // Right circle
+    ctx.lineTo(x, y); // Line to center
+
+    // stem
+    ctx.moveTo(x, y + size * 0.5);
+    ctx.lineTo(x, y + size * 0.8);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fill();
+}
+
+function drawSpade(x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size);
+    
+    ctx.bezierCurveTo(x - size*0.7, y + size*1.3, x - size * 0.7, y + size * 0.6, x, y);
+    ctx.bezierCurveTo(x + size*0.7, y + size * 0.6, x + size*0.7, y + size*1.3, x, y + size);
+
+    ctx.moveTo(x, y + size);
+    ctx.lineTo(x, y + size * 1.3);
+    ctx.stroke();
+    ctx.closePath();
+
+    ctx.fill();
+}
+
+function drawCard(x,y,value, suit, color) {
+    ctx.translate(x, y); // Move origin to (x, y)
+
+    ctx.clearRect(0, 0, cardWidth, cardHeight);
+
+    // Draw Rounded Rectangle (Card)
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardWidth, cardHeight, cornerRadius);
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
+    // Determine Suit Symbol and Font Size
+    let symbol, fontSize = 100;
+    switch (suit) {
+        case "heart": symbol = "♥"; break;
+        case "spade": symbol = "♠"; 
+            if (value === "1") {
+                value = "A";
+                fontSize *= 3; // Make Ace of Spades larger
+            }
+            break;
+        case "club": symbol = "♣"; break;
+        case "diamond": symbol = "♦"; break;
+        case "moon": symbol = "☪"; break;
+        case "star": symbol = "★"; break;
+        case "snowflake": symbol = "𖤓"; break;
+        case "clover":  symbol = "☘"; break; // New suit
+        case "cross":   symbol = "✝"; break; // New suit
+        case "skull":   symbol = "☠"; break; // New suit
+        case "anchor":  symbol = "⚓"; break; // New suit
+        default:
+            return; // Invalid suit
+    }
+
+    
+
+
+
+    // Draw Suit Symbol (Middle)
+    if (value === "J" || value === "Q" || value === "K") {
+        // Face Card: Suit Next to Letter
+        let temp = value;
+        value = value + symbol;
+        fontSize *= 1.5; // Make face card symbol larger
+
+            // Handle Face Card Symbols and Sizing
+        if (temp === "J") {
+            symbol = "♘";
+        } else if (temp === "Q") {
+            symbol = "♕";
+        } else if (temp === "K") {
+            symbol = "♔";
+        }
+    }
+
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.fillStyle = color;
+
+
+    // drawing patterns for the number cards
+    let symbolCount = parseInt(value); // Convert value to number if it's a number card
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (!isNaN(symbolCount) && symbolCount >= 2 && symbolCount <= 10){
+        drawSymbolsOnCard(symbolCount, symbol, color, cardWidth, cardHeight); // Draw symbols in pattern
+    }
+    else{
+    //  Suit in Middle/ face in the middle
+  
+    ctx.fillText(symbol, cardWidth / 2, cardHeight / 2);}
+
+    // Draw Value (Top Left)
+    ctx.font = "bold 40px Arial"; // Reset font size for value
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(value, 10, 10); 
+
+    // Draw Value (Bottom Right, Upside Down)
+    ctx.save();
+    ctx.translate(cardWidth, cardHeight);
+    ctx.rotate(Math.PI);
+    ctx.fillText(value, 10, 10);
+    ctx.restore();
+
+    ctx.translate(-x, -y); // Reset origin
+}
+
+function drawSymbolsOnCard(count, suit, color, width, height) {
+    const margin = 20; // Adjust for spacing from edges
+    const symbolSize = 2* Math.min((width - 2 * margin) / 5, (height - 2 * margin) / 2); // Calculate max symbol size
+
+    console.log(width, height, margin)
+
+    ctx.fillStyle = color;
+    ctx.font = `${symbolSize}px Arial`;
+
+    const positions = getSymbolPositions(count, width, height, symbolSize, margin);
+    for (const pos of positions) {
+        ctx.fillText(suit, pos.x, pos.y);
+    }
+}
+
+function getSymbolPositions(count, width, height, symbolSize, margin) {
+    const positions = [];
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const spacing = symbolSize-10; // Adjust for spacing between symbols
+
+    switch (count) {
+        case 2:
+            positions.push({ x: centerX, y: centerY - symbolSize / 2 },
+                           { x: centerX, y: centerY + symbolSize / 2 });
+        break;
+        case 3:
+            positions.push({ x: centerX,   y:  centerY + symbolSize / 2 },
+                            { x: centerX - symbolSize / 2 ,   y: centerY - symbolSize / 2 },
+                            { x: centerX + symbolSize / 2, y: centerY - symbolSize / 2}); break;
+        case 4:
+            positions.push({ x: centerX / 2,   y: centerY /2 },
+                        { x: centerX * 3 / 2, y: centerY / 2},
+                        { x: centerX / 2,   y: centerY * 3 / 2 },
+                        { x: centerX * 3 / 2, y: centerY * 3 / 2 }); break;
+        case 5:
+            positions.push({ x: centerX, y: centerY },
+                        { x: centerX / 2, y: centerY / 2 },
+                        { x: centerX * 3 / 2, y: centerY / 2 },
+                        { x: centerX / 2, y: centerY * 3 / 2 },
+                        { x: centerX * 3 / 2, y: centerY * 3 / 2 }); break;
+        case 6:
+            positions.push(
+                { x: centerX - spacing, y: centerY - symbolSize / 2 },
+                { x: centerX + spacing, y: centerY - symbolSize / 2 },
+                { x: centerX - spacing, y: centerY + symbolSize / 2 },
+                { x: centerX + spacing, y: centerY + symbolSize / 2 },
+                { x: centerX, y: centerY - spacing },
+                { x: centerX, y: centerY + spacing }); break;
+        case 7:
+            positions.push(
+                { x: centerX, y: centerY },
+                { x: centerX - spacing, y: centerY - symbolSize / 2 },
+                { x: centerX + spacing, y: centerY - symbolSize / 2 },
+                { x: centerX - spacing, y: centerY + symbolSize / 2 },
+                { x: centerX + spacing, y: centerY + symbolSize / 2 },
+                { x: centerX, y: centerY - spacing },
+                { x: centerX, y: centerY + spacing }
+            );break;
+        case 8:
+            positions.push(
+                ...getSymbolPositions(4, width, height, symbolSize, margin),
+                { x: centerX,   y: centerY /2 },
+                { x: centerX * 3 / 2, y: centerY},
+                { x: centerX,   y: centerY * 3 / 2 },
+                { x: centerX /2, y: centerY}
+            );break;
+        case 9:
+            positions.push(
+                ...getSymbolPositions(8, width, height, symbolSize, margin),
+                { x: centerX,   y: centerY},
+            );break;
+        case 10:
+            positions.push(
+                { x: centerX / 2,   y: centerY /2 },
+                { x: centerX * 3 / 2, y: centerY / 2},
+                { x: centerX / 2,   y: centerY /2 +spacing *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2 +spacing  *0.8 },
+                { x: centerX / 2,   y: centerY /2 + spacing *2  *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2 + spacing *2  *0.8},
+                { x: centerX / 2,   y: centerY /2 + spacing *3 *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2+ spacing *3 *0.8},
+                { x: centerX,   y: centerY + spacing},
+                { x: centerX, y: centerY - spacing},
+            );break;
+        
+    }
+
+    return positions;
+}
+
+// Calculate How Many Cards Fit (approximate)
+const cardsPerRow = Math.ceil(canvas.width / cardWidth);
+const cardsPerColumn = Math.ceil(canvas.height / cardHeight);
+
+// Potential Color Array
+const suitColors = {
+    "heart":   "red",
+    "spade":   "black",
+    "club":    "black",
+    "diamond": "red",
+    // "moon":    "darkgreen",
+    // "star":    "gold",
+    // "snowflake": "lightblue",
+    // "clover":  "darkgreen",
+    // "cross":   "gold",
+    // "skull":   "black",
+    // "anchor":  "navy"
+};
+
+// // Function to Generate Random Card Data
+// function getRandomCard() {
+//     const values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+//     const suits = Object.keys(suitColors);
+
+//     const randomValue = values[Math.floor(Math.random() * values.length)];
+//     const randomSuitIndex = Math.floor(Math.random() * suits.length);
+//     const randomSuit = suits[randomSuitIndex];
+//     const randomColor = suitColors[randomSuit]
+//     return [randomValue, randomSuit, randomColor];
+// }
+
+// // Draw Random Cards
+// for (let i = 0; i < cardsPerRow; i++) {
+//     for (let j = 0; j < cardsPerColumn; j++) {
+//         const [value, suit, color] = getRandomCard();
+//         console.log(value, suit, color);
+//         drawCard(i * cardWidth, j * cardHeight, value, suit, color);
+//     }
+// }
+
+
+// // Testing
+// drawHeart(50, 50, 40);
+// drawDiamond(150, 50, 40);
+// drawClub(250, 50, 40);
+// drawSpade(350, 50, 40);
+
+// Initial Card Values
+let cardValues = {
+    "spade": 0,
+    "heart": 1,
+    "club": 2,
+    "diamond": 3
+};
+
+// Card Positions (centered on screen)
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+const cardSpacing = 100;
+const cardPositions = [
+    { x: centerX - 2*(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
+    { x: centerX -(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
+    { x: centerX + 1/3*(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
+    { x: centerX + (3/2) * cardWidth + cardSpacing, y: centerY - cardHeight / 2 }
+];
+
+let values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+
+function updateAndDrawCards() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+    for (let i = 0; i < cardPositions.length; i++) {
+        const suit = Object.keys(cardValues)[i];
+        drawCard(cardPositions[i].x, cardPositions[i].y, values[cardValues[suit].toString()], suit, suitColors[suit]);
+
+        cardValues[suit]++;
+        if (cardValues[suit] > 12) { // Reset to 1 after King
+            cardValues[suit] = 0;
+        }
+    }
+}
+
+// Start the animation loop
+setInterval(updateAndDrawCards, 1000); // Update every 1 second
+updateAndDrawCards(); // Initial draw
+
+
+</script>
+</body>
+
+</html>
