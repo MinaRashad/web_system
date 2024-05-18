@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gardening Game</title>
+  <style>
+body {
+  font-family: sans-serif;
+  background-color: #f0f8ff; /* Light blue for a sky-like feel */
+  color: #333; /* Dark text for better contrast */
+}
+
+#shop, #garden, #inventory {
+  background-color: #fff; /* White background for content areas */
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px; /* Slightly rounded corners */
+}
+
+#gardenGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* Adjust for desired grid size */
+  gap: 2px; /* Reduce space between squares */
+}
+
+.square {
+  width: 40px; /* Adjust size as needed */
+  height: 40px;
+  border: 1px solid #ccc;
+  background-color: #eee; /* Light gray for soil */
+  display: flex; /* Center emoji within square */
+  justify-content: center;
+  align-items: center;
+  font-size: 24px; /* Adjust emoji size */
+  cursor: pointer; /* Indicate interactivity */
+}
+
+.square:empty {
+  background-color: #ddd; /* Slightly darker for empty squares */
+}
+
+#money {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+  z-index: 10; /* Ensure it's on top */
+}
+
+#shopContent {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 20px;
+  border-radius: 5px;
+}
+
+.seed-card {
+  display: inline-block;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 5px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+#plantList {
+  display: flex; /* Arrange inventory items in a row or column */
+  flex-wrap: wrap; /* Allow items to wrap to the next line if needed */
+  gap: 10px;
+}
+
+.plant-card {
+  display: flex;
+  flex-direction: column; /* Stack emoji and count vertically */
+  align-items: center;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  background-color: #f5f5f5;
+}
+
+#money {
+  font-size: 24px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+#moneyAmount::before {
+  content: "💰"; /* Money bag emoji */
+  margin-right: 5px;
+}
+  </style>
+</head>
+<body>
+  <div id="shopOverlay" class="overlay">
+    <div id="shopContent">
+        <span class="close-btn" onclick="toggleShop()">&times;</span>
+        <h2>Shop</h2>
+        <div id="seedList"></div>
+    </div>
+</div>
+<button onclick="toggleShop()">Open Shop</button> 
+
+  <div id="garden">
+    <h2>Garden</h2>
+    <div id="gardenGrid">
+    </div>
+  </div>
+
+  <div id="inventory">
+    <h2>Inventory</h2>
+    <ul id="plantList"></ul>
+  </div>
+
+  <div id="money">
+    <span id="moneyAmount">💰0</span>
+  </div>
+
+  <audio id="openShopSound" src="sounds/open_shop.mp3" preload="auto"></audio>
+  <audio id="closeShopSound" src="sounds/close_shop.mp3" preload="auto"></audio>
+  <audio id="plantSound" src="sounds/plant.mp3" preload="auto"></audio>
+  <audio id="harvestSound" src="sounds/harvest.mp3" preload="auto"></audio>
+  <audio id="buySound" src="sounds/buy.mp3" preload="auto"></audio>
+  <audio id="sellSound" src="sounds/sell.mp3" preload="auto"></audio>
+
+  <script>
+
+let money = 50;
+let seeds = [
+  { name: "🥕", price: 10, growthTime: 10000, sellPrice: 15 },
+  { name: "🍅", price: 15, growthTime: 20000, sellPrice: 25 },
+  { name: "🍆", price: 20, growthTime: 30000, sellPrice: 35 },
+  { name: "🌶️", price: 25, growthTime: 40000, sellPrice: 45 },
+  { name: "🌽", price: 30, growthTime: 50000, sellPrice: 55 },
+  { name: "🍉", price: 35, growthTime: 60000, sellPrice: 65 },
+  { name: "🍇", price: 40, growthTime: 70000, sellPrice: 75 },
+  { name: "🍓", price: 45, growthTime: 80000, sellPrice: 85 },
+  { name: "🍍", price: 50, growthTime: 90000, sellPrice: 95 },
+  { name: "🍏", price: 55, growthTime: 100000, sellPrice: 105 }
+];
+
+// Create garden grid squares
+const gardenGrid = document.getElementById("gardenGrid");
+for (let i = 0; i < 40; i++) { // Adjust 25 for different grid sizes
+  const square = document.createElement("div");
+  square.classList.add("square");
+  gardenGrid.appendChild(square);
+}
+
+
+
+//************************************************************************
+
+
+function populateShop() {
+  const seedList = document.getElementById("seedList");
+  seeds.forEach(seed => {
+    const seedCard = document.createElement("div");
+    seedCard.classList.add("seed-card");
+    seedCard.innerHTML = `
+      <h3>${seed.name}</h3>
+      <p>Price: $${seed.price}</p>
+    `;
+    seedCard.addEventListener("click", () => buySeed(seed.name));
+    seedList.appendChild(seedCard);
+  });
+}
+
+function buySeed(seedName) {
+  const seed = seeds.find(s => s.name === seedName);
+  if (money >= seed.price) {
+    money -= seed.price;
+    updateMoney();
+    addToInventory(seed);
+    document.getElementById("buySound").play();
+  } else {
+    alert("Not enough money!");
+  }
+}
+
+
+function addToInventory(seed) {
+  const plantList = document.getElementById("plantList");
+  const existingItem = plantList.querySelector(`[data-seed="${seed.name}"]`);
+
+  if (existingItem) {
+    const count = parseInt(existingItem.getAttribute("data-count"), 10) + 1;
+    existingItem.setAttribute("data-count", count);
+    existingItem.textContent = `${seed.name} x${count}`;
+  } else {
+    const plantCard = document.createElement("div");
+    plantCard.classList.add("plant-card");
+    plantCard.setAttribute("data-seed", seed.name);
+    plantCard.setAttribute("data-count", 1);
+    plantCard.innerHTML = `
+    <h3>${seed.name}</h3>
+      <span>x1</span>
+    `;
+    plantCard.addEventListener("click", () => plantSeed(seed, plantCard));
+    plantList.appendChild(plantCard);
+  }
+}
+
+function plantSeed(seed, listItem) {
+  const gardenGrid = document.getElementById("gardenGrid");
+  const selectedSquare = gardenGrid.querySelector(".square:empty");
+  if (selectedSquare) {
+    selectedSquare.textContent = `🌱`;
+    selectedSquare.setAttribute("data-growth", seed.growthTime);
+
+    const count = parseInt(listItem.getAttribute("data-count"), 10) - 1;
+    listItem.setAttribute("data-count", count);
+    listItem.textContent = `${seed.name} x${count}`;
+    if (count === 0) listItem.remove(); // Remove seed from inventory if count reaches 0
+    setTimeout(() => growPlant(selectedSquare, seed), seed.growthTime);
+    document.getElementById("plantSound").play();
+  } else {
+    alert("No empty squares!");
+  }
+}
+
+function growPlant(square, seed) {
+  square.textContent = `${seed.name}`; // Add a sprout emoji
+  square.addEventListener("click", function harvestSquare(){
+    harvestPlant(square, seed)
+    square.removeEventListener("click", harvestSquare);
+});
+}
+
+function harvestPlant(square, seed) {
+  money += seed.sellPrice;
+  updateMoney();
+  square.textContent = "";
+  square.removeAttribute("data-growth");
+  document.getElementById("harvestSound").play();
+  document.getElementById("sellSound").play(); // Since harvesting and selling are simultaneous
+
+}
+
+function updateMoney() {
+  document.getElementById("moneyAmount").textContent = money; // Update the text content directly
+}
+
+//************************************************************************
+
+function toggleShop() {
+  const shopOverlay = document.getElementById("shopOverlay");
+  shopOverlay.style.display = shopOverlay.style.display === "block" ? "none" : "block";
+  if (shopOverlay.style.display === "block") {
+    document.getElementById("openShopSound").play();
+  } else {
+    document.getElementById("closeShopSound").play();
+  }
+}
+
+// Initial setup
+populateShop();
+updateMoney();
+
+  </script>
+</body>
+</html>
