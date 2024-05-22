@@ -9,5 +9,6 @@ currently this repo has
 - A piano
 - playing card generator
 - Gradening game
+- Chess with multiple game modes
 
 The notable thing is that these projects are all self-contained and do not require internet or extra files
