@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Simple Chess Game</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+    }
+    #chessboard {
+        border-collapse: collapse;
+        /* center */
+        margin-left: auto;
+        margin-right: auto;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .square {
+        width: 85px;
+        height: 85px;
+        text-align: center;
+        /* make font as big as square */
+        font-size: 65px;
+        user-select: none;
+    }
+
+    .white {
+        background-color: #f0d9b5;
+    }
+
+    .black {
+        background-color: #b58863;
+    }
+
+    .white, .black {
+        border: 1px solid black;
+    }
+    .highlight {
+        background-color: #99ccff;
+    }
+    .selected { /* New style for highlighting the selected piece */
+        background-color: #ffff99; 
+    }
+    #move-history {
+        list-style: none;
+        padding: 0;
+        margin-top: 20px;
+        font-family: monospace;
+        overflow-y: scroll;
+        max-height: 60vh;
+        max-width: 5vw;
+        scroll-behavior: smooth;
+        background-color: beige;
+        scrollbar-width: none;
+        border: 1px solid #ddd; /* Add a subtle border */
+        border-radius: 5px; /* Add rounded corners */
+}
+
+    #move-history li {
+        margin-bottom: 5px; /* Add space between moves */
+    }
+    #turn-display {
+        position: absolute;
+        top: 10px;
+        right: 10px; /* Display on the right */
+        font-size: 18px; /* Increase font size for visibility */
+    }
+</style>
+</head>
+<body>
+    <table id="chessboard">
+         </table>
+
+         <div id="move-history"></div>
+         <ol id="turn-display"></ol>
+         <select id="game-mode">
+            <option value="chess">Chess</option>
+            <option value="antichess">AntiChess</option>
+            <option value="kingofthehill">King of the Hill</option>
+            <option value="atomic">Atomic</option>
+        </select>
+
+
+<script>
+
+    let currentGameMode = 'Chess'; // Default game mode
+    const gameModeSelect = document.getElementById('game-mode');
+    gameModeSelect.addEventListener('change', () => {
+        currentGameMode = gameModeSelect.value;
+    });
+
+
+    /** INITIAL DEFINITIONS **/
+    class ChessPiece {
+        constructor(color, position, symbol) {
+            this.color = color;
+            this.position = position;
+            this.symbol = symbol;
+            this.enPassant = null; 
+            this.hasMoved = false;
+
+        }
+
+        getValidMoves(pieces) {
+            let validMoves = this._getPotentialMoves();
+            const [file, rank] = this.position.split('');
+
+            // Remove moves blocked by other pieces
+            validMoves = validMoves.filter(move => {
+                const [newFile, newRank] = move.split('');
+                const dx = newFile.charCodeAt(0) - file.charCodeAt(0);
+                const dy = parseInt(newRank) - parseInt(rank);
+
+                for (let i = 1; i < Math.max(Math.abs(dx), Math.abs(dy)); i++) {
+                    const intermediateFile = String.fromCharCode(file.charCodeAt(0) + Math.sign(dx) * i);
+                    const intermediateRank = parseInt(rank) + Math.sign(dy) * i;
+                    const intermediatePosition = intermediateFile + intermediateRank;
+                    const intermediatePiece = pieces.find(p => p.position === intermediatePosition);
+                    if (intermediatePiece && !(this instanceof Knight)) { 
+                        return false;
+                    }
+                }
+
+                const targetPiece = pieces.find(p => p.position === move);
+                return !targetPiece || targetPiece.color !== this.color;
+            });
+            return validMoves;
+        }
+    }
+    class Pawn extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+            this.enPassant = null; 
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const direction = this.color === 'white' ? 1 : -1;
+            const moves = [];
+            const nextRank = parseInt(rank) + direction;
+
+            // Check if the pawn can move one square forward
+            const oneSquareForward = file + nextRank;
+            if (!pieces.find(p => p.position === oneSquareForward)) {
+                moves.push(oneSquareForward);
+
+                // If it's the first move, check for two squares forward
+                if (this.hasMoved === false) {
+                    const twoSquaresForward = file + (nextRank + direction);
+                    if (!pieces.find(p => p.position === twoSquaresForward)) {
+                        moves.push(twoSquaresForward);
+                    }
+                }
+            }
+
+            // Check for diagonal captures
+            const captureOffsets = [[-1, direction], [1, direction]];
+            for (const [dx, dy] of captureOffsets) {
+                const newFile = String.fromCharCode(file.charCodeAt(0) + dx);
+                const newRank = parseInt(rank) + dy;
+                if (newFile >= 'a' && newFile <= 'h' && newRank >= 1 && newRank <= 8) {
+                    const capturePosition = newFile + newRank;
+                    const capturedPiece = pieces.find(p => p.position === capturePosition);
+                    if (capturedPiece && capturedPiece.color !== this.color) {
+                        moves.push(capturePosition);
+                    }
+                }
+            }
+
+            // Check for en passant captures
+            const lastMove = moveHistory[moveHistory.length - 1];
+            // is pawn if is not bishop, rook, queen, king, knight
+            let not_pawn_letters = ['R', 'N', 'B', 'Q', 'K']
+            let is_pawn = lastMove && !not_pawn_letters.includes(lastMove[0]);
+
+            if (lastMove && lastMove.length === 4 && is_pawn) { // Last move was a pawn move
+                const [lastStartFile, lastStartRank, lastEndFile, lastEndRank] = lastMove.split('');
+                const lastMoveDistance = Math.abs(parseInt(lastEndRank) - parseInt(lastStartRank));
+
+
+                if (Math.abs(lastMoveDistance) === 2 && // Double-step pawn move
+                    Math.abs(lastEndFile.charCodeAt(0) - file.charCodeAt(0)) === 1 && // Adjacent file
+                    parseInt(lastEndRank) === parseInt(rank)) { // Same rank
+                    const enPassantTarget = lastEndFile + (parseInt(lastEndRank) + (this.color === 'white' ? 1 : -1));
+                    let targetPiecePosition = lastEndFile + lastEndRank;
+                    let targetPiece = pieces.find(p => p.position === targetPiecePosition);
+                    this.enPassant = {targetPiece, enPassantTarget};
+                    moves.push(enPassantTarget); // Add en passant move
+                }
+            }
+            
+            return moves;
+        }
+    }
+    class Rook extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const moves = [];
+            for (let i = 1; i <= 8; i++) {
+                moves.push(file + i);
+                moves.push(String.fromCharCode(97 + i - 1) + rank);
+            }
+            return moves;
+        }
+    }
+    class Knight extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const moves = [];
+            const offsets = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2], [1, 2], [2, -1], [2, 1]
+            ];
+            for (const [dx, dy] of offsets) {
+                const newFile = String.fromCharCode(file.charCodeAt(0) + dx);
+                const newRank = parseInt(rank) + dy;
+                if (newFile >= 'a' && newFile <= 'h' && newRank >= 1 && newRank <= 8) {
+                    moves.push(newFile + newRank);
+                }
+            }
+            return moves;
+        }
+    }
+    class Bishop extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const moves = [];
+            for (let i = 1; i <= 8; i++) {
+                const newFile1 = String.fromCharCode(file.charCodeAt(0) + i);
+                const newFile2 = String.fromCharCode(file.charCodeAt(0) - i);
+                const newRank1 = parseInt(rank) + i;
+                const newRank2 = parseInt(rank) - i;
+                if (newFile1 <= 'h' && newRank1 <= 8) {
+                    moves.push(newFile1 + newRank1);
+                }
+                if (newFile1 <= 'h' && newRank2 >= 1) {
+                    moves.push(newFile1 + newRank2);
+                }
+                if (newFile2 >= 'a' && newRank1 <= 8) {
+                    moves.push(newFile2 + newRank1);
+                }
+                if (newFile2 >= 'a' && newRank2 >= 1) {
+                    moves.push(newFile2 + newRank2);
+                }
+            }
+            return moves;
+        }
+    }
+    class Queen extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const moves = [];
+            for (let i = 1; i <= 8; i++) {
+                moves.push(file + i);
+                moves.push(String.fromCharCode(97 + i - 1) + rank);
+            }
+            for (let i = 1; i <= 8; i++) {
+                const newFile1 = String.fromCharCode(file.charCodeAt(0) + i);
+                const newFile2 = String.fromCharCode(file.charCodeAt(0) - i);
+                const newRank1 = parseInt(rank) + i;
+                const newRank2 = parseInt(rank) - i;
+                if (newFile1 <= 'h' && newRank1 <= 8) {
+                    moves.push(newFile1 + newRank1);
+                }
+                if (newFile1 <= 'h' && newRank2 >= 1) {
+                    moves.push(newFile1 + newRank2);
+                }
+                if (newFile2 >= 'a' && newRank1 <= 8) {
+                    moves.push(newFile2 + newRank1);
+                }
+                if (newFile2 >= 'a' && newRank2 >= 1) {
+                    moves.push(newFile2 + newRank2);
+                }
+            }
+            return moves;
+        }
+    }
+    class King extends ChessPiece {
+        constructor(color, position, symbol) {
+            super(color, position, symbol);
+            this.castling = false;
+        }
+
+        _getPotentialMoves() {
+            const [file, rank] = this.position.split('');
+            const moves = [];
+            const offsets = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1], [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+            for (const [dx, dy] of offsets) {
+                const newFile = String.fromCharCode(file.charCodeAt(0) + dx);
+                const newRank = parseInt(rank) + dy;
+                if (newFile >= 'a' && newFile <= 'h' && newRank >= 1 && newRank <= 8) {
+                    moves.push(newFile + newRank);
+                }
+            }
+            // Check for castling (both kingside and queenside)
+            const castlingMoves = this.getCastlingMoves(pieces);
+            moves.push(...castlingMoves);
+
+            return moves;
+        }
+
+        getCastlingMoves(pieces){
+            let castling_moves = [];
+            if (!this.hasMoved) {
+                // Check for kingside castling (0-0)
+                if (!pieces.find(p => p.position === 'f' + this.position[1]) &&
+                    !pieces.find(p => p.position === 'g' + this.position[1])) {
+                    castling_moves.push('g' + this.position[1]);
+                }
+
+                // Check for queenside castling (0-0-0)
+                if (!pieces.find(p => p.position === 'b' + this.position[1]) &&
+                    !pieces.find(p => p.position === 'c' + this.position[1]) &&
+                    !pieces.find(p => p.position === 'd' + this.position[1])) {
+                    castling_moves.push('c' + this.position[1]);
+                }
+            }
+
+            if(castling_moves.length > 0 ) this.castling = true;
+            else this.castling = false;
+
+            return castling_moves;
+        }
+
+        // isSquareUnderAttack(square, pieces) {
+        //     return pieces.some(p => p.color !== this.color && p.getValidMoves(pieces).includes(square));
+        // }
+    }
+
+    let pieces = [];
+
+    // create board
+    const chessboard = document.getElementById('chessboard');
+
+    function MovePiece(start, end) {
+        const startSquare = document.getElementById(start);
+        const endSquare = document.getElementById(end);
+        // Update piece's position in our pieces array
+        const piece = pieces.find(p => p.position === start);
+        
+        // if there is an end piece, remove it from the board
+        const endPiece = pieces.find(p => p.position === end);
+        if (endPiece) {
+            endPiece.position = null; // remove from board
+            console.log(getSelectedGameMode());
+            if(getSelectedGameMode() === 'atomic'){
+                // neighboring squares
+                let neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                let endFile = end[0];
+                let endRank = parseInt(end[1]);
+
+                for (let [dx, dy] of neighbors) {
+                    let newFile = String.fromCharCode(endFile.charCodeAt(0) + dx);
+                    let newRank = endRank + dy;
+                    let newSquare = newFile + newRank;
+                    let newPiece = pieces.find(p => p.position === newSquare);
+                    if(newPiece) {
+                        newPiece.position = null;
+                        document.getElementById(newSquare).textContent = '';
+                    }
+                }
+            }
+        }
+
+                
+        if (piece) {
+            piece.position = end;
+
+            piece.hasMoved = true;
+
+        }
+        
+        if (startSquare && endSquare) {
+            
+            if (piece instanceof Pawn && (end[1] === '8' || end[1] === '1')) {
+                // Pawn has reached the opposite end, trigger promotion
+                let promotionChoice = prompt("Promote pawn to (Q, R, B, N):").toUpperCase();
+
+                // Validate the promotion choice
+                while (promotionChoice !== 'Q' && promotionChoice !== 'R' && 
+                    promotionChoice !== 'B' && promotionChoice !== 'N') {
+                    alert("Invalid choice. Please enter Q, R, B, or N.");
+                    promotionChoice = prompt("Promote pawn to (Q, R, B, N):").toUpperCase();
+                }
+
+                // Replace the pawn with the chosen piece
+                const newPiece = createPromotedPiece(piece.color, end, promotionChoice);
+                piece.position = null;
+                pieces.push(newPiece);
+                endSquare.textContent = newPiece.symbol;
+                startSquare.textContent = '';
+                return;
+            }
+
+            if(piece instanceof Pawn && piece.enPassant && end === piece.enPassant.enPassantTarget) {
+                // En passant capture
+                let targetPiece= piece.enPassant.targetPiece;
+                document.getElementById(targetPiece.position).textContent = '';
+            }
+
+            // castling
+            if(piece instanceof King && piece.castling && (end[0] === 'g' || end[0] === 'c') && end[1] === piece.position[1]) {
+                let rook = pieces.find(p => p.position === 'h' + end[1]);
+                if(end[0] === 'c') {
+                    rook.position = 'd' + end[1];
+                    document.getElementById('a' + end[1]).textContent = '';
+                    document.getElementById('d' + end[1]).textContent = rook.symbol;
+                } else {
+                    rook.position = 'f' + end[1];
+                    document.getElementById('h' + end[1]).textContent = '';
+                    document.getElementById('f' + end[1]).textContent = rook.symbol;
+                }
+            }
+
+            endSquare.textContent = piece.symbol;
+            startSquare.textContent = '';
+
+            // Record the move
+            // Record the move using Reversible algebraic notation
+            const pieceLetter = getPieceLetter(piece);
+            const en_passant_ext = piece.enPassant ? ' e.p.' : '';
+            let capture = endPiece && endPiece.color !== piece.color ? 'x' + getPieceLetter(endPiece) : '';
+            if(en_passant_ext) {
+                capture = 'x' + getPieceLetter(piece.enPassant.targetPiece);
+                piece.enPassant.targetPiece.position = null;
+                piece.enPassant = null;
+            }
+            const moveNotation = pieceLetter + start + capture + end + en_passant_ext;
+
+            moveHistory.push(moveNotation);
+
+            if(endPiece && getSelectedGameMode() == 'atomic') {
+                piece.position = null;
+                endSquare.textContent = '';
+
+
+            }
+
+            updateMoveHistory();
+
+            // Play sound effect
+            playSound();
+
+            
+
+            // check win condition
+            checkWinCondition();
+        } else {
+            console.error("Invalid start or end square.");
+        }
+    }
+
+    function getPieceLetter(piece) {
+        if (piece instanceof Pawn) return ''; // Pawns don't have a letter in this notation
+        if (piece instanceof Rook) return 'R';
+        if (piece instanceof Knight) return 'N';
+        if (piece instanceof Bishop) return 'B';
+        if (piece instanceof Queen) return 'Q';
+        if (piece instanceof King) return 'K';
+        else null
+    }
+
+    function createPromotedPiece(color, position, choice) {
+        switch (choice) {
+            case 'Q': return new Queen(color, position, color === 'white' ? '♕' : '♛');
+            case 'R': return new Rook(color, position, color === 'white' ? '♖' : '♜');
+            case 'B': return new Bishop(color, position, color === 'white' ? '♗' : '♝');
+            case 'N': return new Knight(color, position, color === 'white' ? '♘' : '♞');
+        }
+    }
+
+    function updateMoveHistory() {
+        const moveHistoryDiv = document.getElementById('move-history');
+        const moveList = document.createElement('li');
+        moveList.textContent = moveHistory[moveHistory.length - 1];
+        moveHistoryDiv.appendChild(moveList);
+    }
+
+    function playSound() {
+        const audioContext = new AudioContext();
+        const oscillator = audioContext.createOscillator();
+        // Attack-Decay-Sustain-Release (ADSR) Envelope: 0, 0.03, 0.001 seconds
+        const gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.001);
+        gainNode.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 0.031);
+        oscillator.connect(gainNode);
+
+        gainNode.connect(audioContext.destination);
+
+        // freq 440 Hz, 0.1 seconds
+
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+        
+    }
+
+    /** INTERACTION **/
+
+    let selectedPiece = null;
+    let currentTurn; // Start with white's turn
+    const turnDisplay = document.getElementById('turn-display');
+
+function handleSquareClick(event) {
+        const clickedSquare = event.target;
+        const squareId = clickedSquare.id;
+
+        if (selectedPiece) {
+            const piece = pieces.find(p => p.position === squareId);
+            if (piece && piece.color === currentTurn) {
+                // Deselect the piece if it was clicked again
+                selectedPiece = null;
+                clearHighlights();
+            } else if (selectedPiece) {
+                // If a piece is already selected, try to move it.
+                const validMoves = gameModeValidMoves(selectedPiece);
+                
+                if (validMoves.includes(squareId)) {
+                    switchTurn();
+                    MovePiece(selectedPiece.position, squareId);
+                }
+                selectedPiece = null;
+                clearHighlights();
+            }
+        } else {
+            // If no piece is selected, try to select one of the current player's pieces.
+            const piece = pieces.find(p => p.position === squareId && p.color === currentTurn);
+            if (piece) {
+                selectedPiece = piece;
+                highlightMoves(selectedPiece);
+                clickedSquare.classList.add('selected');
+            }
+        }
+    }
+
+
+    function switchTurn() {
+        currentTurn = currentTurn === 'white' ? 'black' : 'white';
+        document.getElementById('turn-display').textContent = "Turn: " + currentTurn;
+    }
+
+    function checkWinCondition() {
+        const gameMode = getSelectedGameMode();
+        const blackKing = pieces.find(p => p instanceof King && p.color === 'black');
+        const whiteKing = pieces.find(p => p instanceof King && p.color === 'white');
+
+        if (gameMode === 'chess' || gameMode === 'atomic') {
+            if (!blackKing.position) {
+                alert('White wins!');
+                resetGame();
+            } else if (!whiteKing.position) {
+                alert('Black wins!');
+                resetGame();
+            }
+        } else if (gameMode === 'antichess') {
+            // check each color
+            const blackPieces = pieces.filter(p => p.color === 'black' && p.position !== null);
+            const whitePieces = pieces.filter(p => p.color === 'white' && p.position !== null);
+
+            if (blackPieces.length === 0) {
+                alert('Black wins!');
+                resetGame();
+            } else if (whitePieces.length === 0) {
+                alert('White wins!');
+                resetGame();
+            }
+
+
+        } else if (gameMode === 'kingofthehill') {
+            const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+            if (centerSquares.includes(blackKing?.position)) {
+                alert('Black is King of the Hill!');
+                resetGame();
+            } else if (centerSquares.includes(whiteKing?.position)) {
+                alert('White is King of the Hill!');
+                resetGame();
+            }
+        } // ... (Add checks for other game modes if needed)
+    }
+
+    function getSelectedGameMode() {
+        return currentGameMode.toLowerCase().replace(/\s/g, '');
+    }
+
+    function gameModeValidMoves(piece){
+        const gameMode = getSelectedGameMode();
+        const validMoves = piece.getValidMoves(pieces);
+        if (gameMode === 'antichess') {
+            let temp_valid = validMoves.filter(move => {
+                const targetPiece = pieces.find(p => p.position === move);
+                return targetPiece && targetPiece.color !== piece.color;
+            });
+
+            console.log(temp_valid)
+
+            if(temp_valid.length === 0) {
+                return validMoves;
+            } else {
+                return temp_valid;
+            }
+        } else {
+            return validMoves;
+        }
+        
+    }
+
+    function resetGame(){
+        pieces = [
+            new Rook('black', 'a8', '♜'),
+            new Knight('black', 'b8', '♞'),
+            new Bishop('black', 'c8', '♝'),
+            new Queen('black', 'd8', '♛'),
+            new King('black', 'e8', '♚'),
+            new Bishop('black', 'f8', '♝'),
+            new Knight('black', 'g8', '♞'),
+            new Rook('black', 'h8', '♜'),
+            new Rook('white', 'a1', '♖'),
+            new Knight('white', 'b1', '♘'),
+            new Bishop('white', 'c1', '♗'),
+            new Queen('white', 'd1', '♕'),
+            new King('white', 'e1', '♔'),
+            new Bishop('white', 'f1', '♗'),
+            new Knight('white', 'g1', '♘'),
+            new Rook('white', 'h1', '♖')
+        ];
+        // add pawns
+        for (let i = 0; i < 8; i++) {
+            pieces.push(new Pawn('black', String.fromCharCode(97 + i) + '7', '♟'));
+            pieces.push(new Pawn('white', String.fromCharCode(97 + i) + '2', '♙'));
+        }
+        moveHistory = [];
+        document.getElementById('move-history').innerHTML = '';
+        currentTurn = 'white';
+        document.getElementById('turn-display').textContent = "Turn: " + currentTurn;
+        chessboard.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+        const row = document.createElement('tr');
+        for (let j = 0; j < 8; j++) {
+            const square = document.createElement('td');
+            square.className = (i + j) % 2 === 0 ? 'square white' : 'square black';
+            square.id = String.fromCharCode(97 + j) + (8 - i);
+            row.appendChild(square);
+            square.innerHTML = pieces.find(piece => piece.position === square.id)?.symbol || '';
+                        square.addEventListener('click', handleSquareClick);
+
+        }
+        chessboard.appendChild(row);
+    }
+    }
+
+
+
+    function highlightMoves(piece) {
+        const validMoves = gameModeValidMoves(piece);
+        validMoves.forEach(moveId => {
+            const square = document.getElementById(moveId);
+            if (square) {
+                square.classList.add('highlight');
+            }
+        });
+    }
+
+    function clearHighlights() {
+        const highlightedSquares = document.querySelectorAll('.highlight');
+        highlightedSquares.forEach(square => {
+            square.classList.remove('highlight');
+        });
+        const selectedSquares = document.querySelectorAll('.selected');
+        selectedSquares.forEach(square => {
+            square.classList.remove('selected');
+        });
+    }
+
+
+resetGame();
+</script>
+</body>
+</html>

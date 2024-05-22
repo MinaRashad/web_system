@@ -16,8 +16,8 @@ const cardWidth = (2.5 / 3.5) * cardHeight;
 const cornerRadius = 0.1 * Math.min(cardWidth, cardHeight); // 10% of smaller dimension
 
 // Adjust Canvas Size
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = 2*cardWidth+20;
+canvas.height = cardHeight+20;
 
 
 // Drawing Functions
@@ -255,6 +255,30 @@ function getSymbolPositions(count, width, height, symbolSize, margin) {
     return positions;
 }
 
+// Back of Card Drawing Function
+function drawCardBack(x, y) {
+    ctx.translate(x, y);
+
+    // Black border
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardWidth, cardHeight, cornerRadius);
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
+    // White border
+    ctx.fillStyle = "white";
+    ctx.fillRect(1, 1, cardWidth - 2, cardHeight - 2);
+
+    // Royal blue fill
+    ctx.fillStyle = "royalblue";
+    ctx.fillRect(11, 11, cardWidth - 22, cardHeight - 22);
+
+    ctx.translate(-x, -y); // Reset origin
+}
+
 // Calculate How Many Cards Fit (approximate)
 const cardsPerRow = Math.ceil(canvas.width / cardWidth);
 const cardsPerColumn = Math.ceil(canvas.height / cardHeight);
@@ -265,42 +289,15 @@ const suitColors = {
     "spade":   "black",
     "club":    "black",
     "diamond": "red",
-    // "moon":    "darkgreen",
-    // "star":    "gold",
-    // "snowflake": "lightblue",
-    // "clover":  "darkgreen",
-    // "cross":   "gold",
-    // "skull":   "black",
-    // "anchor":  "navy"
+    "moon":    "darkgreen",
+    "star":    "gold",
+    "snowflake": "lightblue",
+    "clover":  "darkgreen",
+    "cross":   "gold",
+    "skull":   "black",
+    "anchor":  "navy"
 };
 
-// // Function to Generate Random Card Data
-// function getRandomCard() {
-//     const values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
-//     const suits = Object.keys(suitColors);
-
-//     const randomValue = values[Math.floor(Math.random() * values.length)];
-//     const randomSuitIndex = Math.floor(Math.random() * suits.length);
-//     const randomSuit = suits[randomSuitIndex];
-//     const randomColor = suitColors[randomSuit]
-//     return [randomValue, randomSuit, randomColor];
-// }
-
-// // Draw Random Cards
-// for (let i = 0; i < cardsPerRow; i++) {
-//     for (let j = 0; j < cardsPerColumn; j++) {
-//         const [value, suit, color] = getRandomCard();
-//         console.log(value, suit, color);
-//         drawCard(i * cardWidth, j * cardHeight, value, suit, color);
-//     }
-// }
-
-
-// // Testing
-// drawHeart(50, 50, 40);
-// drawDiamond(150, 50, 40);
-// drawClub(250, 50, 40);
-// drawSpade(350, 50, 40);
 
 // Initial Card Values
 let cardValues = {
@@ -310,36 +307,19 @@ let cardValues = {
     "diamond": 3
 };
 
-// Card Positions (centered on screen)
-const centerX = canvas.width / 2;
-const centerY = canvas.height / 2;
-const cardSpacing = 100;
-const cardPositions = [
-    { x: centerX - 2*(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
-    { x: centerX -(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
-    { x: centerX + 1/3*(cardWidth+cardSpacing), y: centerY - cardHeight / 2 },
-    { x: centerX + (3/2) * cardWidth + cardSpacing, y: centerY - cardHeight / 2 }
-];
+// draw a random card
 
 let values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+let suits = ["heart", "spade", "club", "diamond", "moon", "star", "snowflake", "clover", "cross", "skull", "anchor"];
 
-function updateAndDrawCards() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-    for (let i = 0; i < cardPositions.length; i++) {
-        const suit = Object.keys(cardValues)[i];
-        drawCard(cardPositions[i].x, cardPositions[i].y, values[cardValues[suit].toString()], suit, suitColors[suit]);
+let randomValue = values[Math.floor(Math.random() * values.length)];
+let randomSuit = suits[Math.floor(Math.random() * suits.length)];
+let randomColor = suitColors[randomSuit];
 
-        cardValues[suit]++;
-        if (cardValues[suit] > 12) { // Reset to 1 after King
-            cardValues[suit] = 0;
-        }
-    }
-}
+drawCard(0, 0, randomValue, randomSuit, randomColor);
 
-// Start the animation loop
-setInterval(updateAndDrawCards, 1000); // Update every 1 second
-updateAndDrawCards(); // Initial draw
-
+// draw back of card next to it
+drawCardBack(cardWidth+10, 0);
 
 </script>
 </body>
