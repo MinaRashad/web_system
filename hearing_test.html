@@ -85,13 +85,13 @@ body {
 
 
         // Check if both ears have been tested
-      if (testingEar === "left") {
-        // Switch to the right ear and restart
-        testingEar = "right";
-        startButton.textContent = "Start Right Ear Test";
-        frequencyDisplay.textContent = "";
-        resultsMessageElement.textContent = "";
-      }
+      // if (testingEar === "left") {
+      //   // Switch to the right ear and restart
+      //   testingEar = "right";
+      //   startButton.textContent = "Start Right Ear Test";
+      //   frequencyDisplay.textContent = "";
+      //   resultsMessageElement.textContent = "";
+      // }
 
       } else { // Start the test
         audioContext = new (window.AudioContext || window.webkitAudioContext)();

@@ -1,0 +1,528 @@
+<html>
+
+
+<body>
+<script>
+// Canvas Setup
+const canvas = document.createElement('canvas');
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+
+// Calculate Card Dimensions
+const screenHeight = window.innerHeight;
+const cardHeight = 0.4 * screenHeight; // 40% of screen height
+const cardWidth = (2.5 / 3.5) * cardHeight;
+const cornerRadius = 0.1 * Math.min(cardWidth, cardHeight); // 10% of smaller dimension
+
+// Adjust Canvas Size
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+/**********************************************
+********** Drawing Cards Functions ************
+**********************************************/
+
+function drawCard(x,y,value, suit, color) {
+    ctx.translate(x, y); // Move origin to (x, y)
+
+    ctx.clearRect(0, 0, cardWidth, cardHeight);
+
+    // Draw Rounded Rectangle (Card)
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardWidth, cardHeight, cornerRadius);
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
+    // Determine Suit Symbol and Font Size
+    let symbol, fontSize = 100;
+    switch (suit) {
+        case "heart": symbol = "♥"; break;
+        case "spade": symbol = "♠"; 
+            if (value === "1") {
+                value = "A";
+                fontSize *= 3; // Make Ace of Spades larger
+            }
+            break;
+        case "club": symbol = "♣"; break;
+        case "diamond": symbol = "♦"; break;
+        case "moon": symbol = "☪"; break;
+        case "star": symbol = "★"; break;
+        case "snowflake": symbol = "𖤓"; break;
+        case "clover":  symbol = "☘"; break; // New suit
+        case "cross":   symbol = "✝"; break; // New suit
+        case "skull":   symbol = "☠"; break; // New suit
+        case "anchor":  symbol = "⚓"; break; // New suit
+        default:
+            return; // Invalid suit
+    }
+
+    
+
+
+
+    // Draw Suit Symbol (Middle)
+    if (value === "J" || value === "Q" || value === "K") {
+        // Face Card: Suit Next to Letter
+        let temp = value;
+        value = value + symbol;
+        fontSize *= 1.5; // Make face card symbol larger
+
+            // Handle Face Card Symbols and Sizing
+        if (temp === "J") {
+            symbol = "♘";
+        } else if (temp === "Q") {
+            symbol = "♕";
+        } else if (temp === "K") {
+            symbol = "♔";
+        }
+    }
+
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.fillStyle = color;
+
+
+    // drawing patterns for the number cards
+    let symbolCount = parseInt(value); // Convert value to number if it's a number card
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (!isNaN(symbolCount) && symbolCount >= 2 && symbolCount <= 10){
+        drawSymbolsOnCard(symbolCount, symbol, color, cardWidth, cardHeight); // Draw symbols in pattern
+    }
+    else{
+    //  Suit in Middle/ face in the middle
+  
+    ctx.fillText(symbol, cardWidth / 2, cardHeight / 2);}
+
+    // Draw Value (Top Left)
+    ctx.font = "bold 40px Arial"; // Reset font size for value
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(value, 10, 10); 
+
+    // Draw Value (Bottom Right, Upside Down)
+    ctx.save();
+    ctx.translate(cardWidth, cardHeight);
+    ctx.rotate(Math.PI);
+    ctx.fillText(value, 10, 10);
+    ctx.restore();
+
+    ctx.translate(-x, -y); // Reset origin
+}
+
+function drawSymbolsOnCard(count, suit, color, width, height) {
+    const margin = 20; // Adjust for spacing from edges
+    const symbolSize = 2* Math.min((width - 2 * margin) / 5, (height - 2 * margin) / 2); // Calculate max symbol size
+
+    console.log(width, height, margin)
+
+    ctx.fillStyle = color;
+    ctx.font = `${symbolSize}px Arial`;
+
+    const positions = getSymbolPositions(count, width, height, symbolSize, margin);
+    for (const pos of positions) {
+        ctx.fillText(suit, pos.x, pos.y);
+    }
+}
+
+function getSymbolPositions(count, width, height, symbolSize, margin) {
+    const positions = [];
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const spacing = symbolSize-10; // Adjust for spacing between symbols
+
+    switch (count) {
+        case 2:
+            positions.push({ x: centerX, y: centerY - symbolSize / 2 },
+                           { x: centerX, y: centerY + symbolSize / 2 });
+        break;
+        case 3:
+            positions.push({ x: centerX,   y:  centerY + symbolSize / 2 },
+                            { x: centerX - symbolSize / 2 ,   y: centerY - symbolSize / 2 },
+                            { x: centerX + symbolSize / 2, y: centerY - symbolSize / 2}); break;
+        case 4:
+            positions.push({ x: centerX / 2,   y: centerY /2 },
+                        { x: centerX * 3 / 2, y: centerY / 2},
+                        { x: centerX / 2,   y: centerY * 3 / 2 },
+                        { x: centerX * 3 / 2, y: centerY * 3 / 2 }); break;
+        case 5:
+            positions.push({ x: centerX, y: centerY },
+                        { x: centerX / 2, y: centerY / 2 },
+                        { x: centerX * 3 / 2, y: centerY / 2 },
+                        { x: centerX / 2, y: centerY * 3 / 2 },
+                        { x: centerX * 3 / 2, y: centerY * 3 / 2 }); break;
+        case 6:
+            positions.push(
+                { x: centerX - spacing, y: centerY - symbolSize / 2 },
+                { x: centerX + spacing, y: centerY - symbolSize / 2 },
+                { x: centerX - spacing, y: centerY + symbolSize / 2 },
+                { x: centerX + spacing, y: centerY + symbolSize / 2 },
+                { x: centerX, y: centerY - spacing },
+                { x: centerX, y: centerY + spacing }); break;
+        case 7:
+            positions.push(
+                { x: centerX, y: centerY },
+                { x: centerX - spacing, y: centerY - symbolSize / 2 },
+                { x: centerX + spacing, y: centerY - symbolSize / 2 },
+                { x: centerX - spacing, y: centerY + symbolSize / 2 },
+                { x: centerX + spacing, y: centerY + symbolSize / 2 },
+                { x: centerX, y: centerY - spacing },
+                { x: centerX, y: centerY + spacing }
+            );break;
+        case 8:
+            positions.push(
+                ...getSymbolPositions(4, width, height, symbolSize, margin),
+                { x: centerX,   y: centerY /2 },
+                { x: centerX * 3 / 2, y: centerY},
+                { x: centerX,   y: centerY * 3 / 2 },
+                { x: centerX /2, y: centerY}
+            );break;
+        case 9:
+            positions.push(
+                ...getSymbolPositions(8, width, height, symbolSize, margin),
+                { x: centerX,   y: centerY},
+            );break;
+        case 10:
+            positions.push(
+                { x: centerX / 2,   y: centerY /2 },
+                { x: centerX * 3 / 2, y: centerY / 2},
+                { x: centerX / 2,   y: centerY /2 +spacing *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2 +spacing  *0.8 },
+                { x: centerX / 2,   y: centerY /2 + spacing *2  *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2 + spacing *2  *0.8},
+                { x: centerX / 2,   y: centerY /2 + spacing *3 *0.8},
+                { x: centerX * 3 / 2, y: centerY / 2+ spacing *3 *0.8},
+                { x: centerX,   y: centerY + spacing},
+                { x: centerX, y: centerY - spacing},
+            );break;
+        
+    }
+
+    return positions;
+}
+
+// Back of Card Drawing Function
+function drawCardBack(x, y) {
+    ctx.translate(x, y);
+
+    // Black border
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.roundRect(0, 0, cardWidth, cardHeight, cornerRadius);
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
+    // White border
+    ctx.fillStyle = "white";
+    ctx.fillRect(1, 1, cardWidth - 2, cardHeight - 2);
+
+    // Royal blue fill
+    ctx.fillStyle = "royalblue";
+    ctx.fillRect(11, 11, cardWidth - 22, cardHeight - 22);
+
+    ctx.translate(-x, -y); // Reset origin
+}
+
+
+/**********************************************
+********** Card definitions Functions ************
+**********************************************/
+
+// Potential Color Array
+const suitColors = {
+    "heart":   "red",
+    "spade":   "black",
+    "club":    "black",
+    "diamond": "red",
+    "moon":    "darkgreen",
+    "star":    "gold",
+    "snowflake": "lightblue",
+    "clover":  "darkgreen",
+    "cross":   "gold",
+    "skull":   "black",
+    "anchor":  "navy"
+};
+
+
+// Initial Card Values
+let cardValues = {
+    "spade": 0,
+    "heart": 1,
+    "club": 2,
+    "diamond": 3
+};
+
+// draw a random card
+
+// let values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+// let suits = ["heart", "spade", "club", "diamond", "moon", "star", "snowflake", "clover", "cross", "skull", "anchor"];
+
+// let randomValue = values[Math.floor(Math.random() * values.length)];
+// let randomSuit = suits[Math.floor(Math.random() * suits.length)];
+// let randomColor = suitColors[randomSuit];
+
+const cardMeanings = {
+    heart: {
+        1: { upright: "New beginnings, love, joy", reversed: "Delays, emotional blockage" },
+        2: { upright: "Partnership, connection", reversed: "Disharmony, conflict" },
+        3: { upright: "Celebration, abundance", reversed: "Excess, indulgence" },
+        4: { upright: "Stability, home, security", reversed: "Stagnation, lack of progress" },
+        5: { upright: "Change, loss, upheaval", reversed: "Fear of change, resistance" },
+        6: { upright: "Harmony, nostalgia, reconciliation", reversed: "Dwelling on the past" },
+        7: { upright: "Choices, options, spirituality", reversed: "Indecision, confusion" },
+        8: { upright: "Movement, travel, new experiences", reversed: "Delays, setbacks" },
+        9: { upright: "Wishes fulfilled, contentment", reversed: "Greed, dissatisfaction" },
+        10: { upright: "Completion, happy ending", reversed: "Unfulfilled potential" },
+        J: { upright: "Loyalty, helpfulness", reversed: "Deception, betrayal" },
+        Q: { upright: "Compassion, nurturing", reversed: "Jealousy, insecurity" },
+        K: { upright: "Generosity, leadership", reversed: "Abuse of power, arrogance" }
+    },
+    spade: {
+        1: { upright: "Transformation, power", reversed: "Loss, misfortune" },
+        2: { upright: "Difficult choices, duality", reversed: "Indecision, imbalance" },
+        3: { upright: "Heartbreak, sorrow, separation", reversed: "Forgiveness, healing" },
+        4: { upright: "Rest, recuperation, solitude", reversed: "Loneliness, isolation" },
+        5: { upright: "Competition, conflict, rivalry", reversed: "Reconciliation, compromise" },
+        6: { upright: "Transition, moving on", reversed: "Resistance to change" },
+        7: { upright: "Deception, betrayal, secrets", reversed: "Truth revealed, exposure" },
+        8: { upright: "Restriction, entrapment, feeling stuck", reversed: "Freedom, liberation" },
+        9: { upright: "Anxiety, worry, nightmares", reversed: "Hope, optimism" },
+        10: { upright: "Endings, ruin, despair", reversed: "Recovery, new beginnings" },
+        J: { upright: "Ambition, drive, focus", reversed: "Selfishness, manipulation" },
+        Q: { upright: "Independence, resourcefulness", reversed: "Coldness, cruelty" },
+        K: { upright: "Authority, control, power", reversed: "Tyranny, abuse of power" }
+    },
+    club: {
+        1: { upright: "New projects, creativity", reversed: "Delays, lack of inspiration" },
+        2: { upright: "Cooperation, teamwork", reversed: "Miscommunication, conflict" },
+        3: { upright: "Growth, expansion, progress", reversed: "Obstacles, setbacks" },
+        4: { upright: "Celebration, stability, community", reversed: "Disruption, instability" },
+        5: { upright: "Competition, challenges", reversed: "Unfairness, defeat" },
+        6: { upright: "Generosity, sharing", reversed: "Stinginess, selfishness" },
+        7: { upright: "Success, victory, perseverance", reversed: "Failure, giving up" },
+        8: { upright: "Action, movement, fast-paced", reversed: "Impatience, recklessness" },
+        9: { upright: "Resilience, determination", reversed: "Burnout, exhaustion" },
+        10: { upright: "Wealth, prosperity, abundance", reversed: "Financial loss, burden" },
+        J: { upright: "Enthusiasm, curiosity", reversed: "Immaturity, recklessness" },
+        Q: { upright: "Confidence, ambition", reversed: "Arrogance, vanity" },
+        K: { upright: "Authority, leadership, business acumen", reversed: "Corruption, greed" }
+    },
+    diamond: {
+        1: { upright: "New opportunities, financial gain", reversed: "Missed opportunities, loss" },
+        2: { upright: "Decisions, partnerships, balance", reversed: "Imbalance, instability" },
+        3: { upright: "Teamwork, collaboration", reversed: "Miscommunication, conflict" },
+        4: { upright: "Possessions, material security", reversed: "Greed, possessiveness" },
+        5: { upright: "Financial hardship, worry", reversed: "Recovery, financial stability" },
+        6: { upright: "Generosity, charity", reversed: "Selfishness, greed" },
+        7: { upright: "Manifestation, hard work pays off", reversed: "Greed, laziness" },
+        8: { upright: "Career, business, new skills", reversed: "Lack of focus, procrastination" },
+        9: { upright: "Abundance, luxury, self-sufficiency", reversed: "Superficiality, envy" },
+        10: { upright: "Wealth, family legacy, culmination", reversed: "Financial ruin, isolation" },
+        J: { upright: "Resourcefulness, cleverness", reversed: "Dishonesty, trickery" },
+        Q: { upright: "Nurturing, generosity", reversed: "Superficiality, insecurity" },
+        K: { upright: "Success, financial stability", reversed: "Greed, obsession with wealth" }
+    },
+    clover: {
+        1: { upright: "Good fortune, luck, new beginnings", reversed: "Misfortune, missed opportunities" },
+        2: { upright: "Balance, harmony, alignment", reversed: "Imbalance, conflict" },
+        3: { upright: "Optimism, joy, celebration", reversed: "Disappointment, pessimism" },
+        4: { upright: "Good health, vitality", reversed: "Illness, lack of energy" },
+        5: { upright: "Unexpected change, disruption", reversed: "Stagnation, lack of progress" },
+        6: { upright: "Serendipity, chance encounters", reversed: "Bad luck, missed connections" },
+        7: { upright: "Faith, trust in the universe", reversed: "Doubt, fear" },
+        8: { upright: "Abundance, prosperity, growth", reversed: "Scarcity, lack of resources" },
+        9: { upright: "Wishes granted, fulfillment", reversed: "Unrealistic expectations" },
+        10: { upright: "Happiness, contentment, completion", reversed: "Unhappiness, dissatisfaction" },
+        J: { upright: "Playfulness, optimism", reversed: "Immaturity, recklessness" },
+        Q: { upright: "Charisma, charm, good luck", reversed: "Manipulation, deceit" },
+        K: { upright: "Leadership, generosity, good fortune", reversed: "Misfortune, poor leadership" }
+    },
+    cross: { // Morals
+        1: { upright: "Integrity, strong moral compass", reversed: "Corruption, dishonesty" },
+        2: { upright: "Balance, fairness, justice", reversed: "Injustice, bias" },
+        3: { upright: "Collaboration, shared values", reversed: "Disharmony, conflicting beliefs" },
+        4: { upright: "Tradition, ritual, established norms", reversed: "Rebellion, rejection of norms" },
+        5: { upright: "Challenges to beliefs, inner conflict", reversed: "Moral compromise, weakness" },
+        6: { upright: "Self-sacrifice, service to others", reversed: "Selfishness, martyrdom" },
+        7: { upright: "Faith, spiritual guidance", reversed: "Loss of faith, doubt" },
+        8: { upright: "Responsibility, accountability", reversed: "Blame, guilt" },
+        9: { upright: "Humanitarianism, compassion", reversed: "Intolerance, prejudice" },
+        10: { upright: "Karma, consequences of actions", reversed: "Avoiding responsibility" },
+        J: { upright: "Idealism, activism", reversed: "Fanaticism, extremism" },
+        Q: { upright: "Wisdom, discernment, ethics", reversed: "Hypocrisy, moral ambiguity" },
+        K: { upright: "Integrity, leadership by example", reversed: "Corruption, abuse of power" }
+    },
+    skull: { // Endings and Life
+        1: { upright: "Transformation, rebirth, new beginnings", reversed: "Resistance to change, fear of death" },
+        2: { upright: "Impermanence, cycles of life and death", reversed: "Denial of change, stagnation" },
+        3: { upright: "Grief, mourning, letting go", reversed: "Holding on, unresolved grief" },
+        4: { upright: "Meditation, introspection, inner peace", reversed: "Depression, isolation" },
+        5: { upright: "Loss, failure, defeat", reversed: "Resilience, overcoming obstacles" },
+        6: { upright: "Inheritance, legacy, past lives", reversed: "Regret, burdens of the past" },
+        7: { upright: "Acceptance, surrender, forgiveness", reversed: "Unforgiveness, bitterness" },
+        8: { upright: "Regeneration, healing, overcoming trauma", reversed: "Lingering pain, trauma" },
+        9: { upright: "Fear of death, anxiety, nightmares", reversed: "Facing fears, acceptance" },
+        10: { upright: "End of a cycle, finality", reversed: "Delay, clinging to the past" },
+        J: { upright: "Rebellion, nonconformity", reversed: "Recklessness, self-destruction" },
+        Q: { upright: "Intuition, psychic abilities", reversed: "Manipulation, dark magic" },
+        K: { upright: "Spiritual leadership, wisdom", reversed: "Misuse of power, manipulation" }
+    },
+    moon: { // Action
+        1: { upright: "Intuition, new opportunities", reversed: "Confusion, illusions" },
+        2: { upright: "Partnerships, collaboration", reversed: "Disharmony, hidden agendas" },
+        3: { upright: "Creativity, imagination", reversed: "Self-doubt, lack of inspiration" },
+        4: { upright: "Dreams, visions, psychic abilities", reversed: "Confusion, nightmares" },
+        5: { upright: "Change, uncertainty, emotional turmoil", reversed: "Fear of change, instability" },
+        6: { upright: "Memories, nostalgia, past experiences", reversed: "Dwelling on the past, regret" },
+        7: { upright: "Illusions, deception, hidden motives", reversed: "Truth revealed, clarity" },
+        8: { upright: "Anxiety, fear, insecurity", reversed: "Overcoming fears, courage" },
+        9: { upright: "Subconscious fears, hidden desires", reversed: "Facing fears, inner strength" },
+        10: { upright: "Cycles, new beginnings, endings", reversed: "Stagnation, repetition" },
+        J: { upright: "Intuition, creativity", reversed: "Mental instability, deception" },
+        Q: { upright: "Emotional depth, compassion", reversed: "Moodiness, manipulation" },
+        K: { upright: "Emotional maturity, intuition", reversed: "Emotional manipulation, deceit" }
+    } 
+}
+
+
+/**********************************************
+ *********** Deck Generation Functions ********
+ **********************************************/
+
+const suits = ["spade", "heart", "club", "diamond", "moon", "clover", "cross", "skull"];
+const values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const deck = [];
+
+for (const suit of suits) {
+    for (const value of values) {
+        deck.push({ suit, value });
+    }
+}
+
+// Card Selection
+let selectedCard = null;
+let isReversed = false;
+
+function chooseRandomCard() {
+    const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+    const randomValue = values[Math.floor(Math.random() * values.length)];
+    isReversed = Math.random() < 0.5; // 50% chance of being reversed
+    selectedCard = { value: randomValue, suit: randomSuit, reversed: isReversed };
+}
+
+// Initial Drawing
+function drawInitialScreen() {
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("Do you seek knowledge...?", canvas.width / 2, 50);
+
+    drawCardBack(canvas.width / 2 - cardWidth / 2, 80); // Draw back in the center
+}
+
+// Card Reveal
+function revealCard() {
+    const x = canvas.width / 2 - cardWidth / 2;
+    const y = 80;
+
+    if (isReversed) {
+        ctx.save();
+        ctx.translate(x + cardWidth / 2, y + cardHeight / 2); // Move to center
+        ctx.rotate(Math.PI); // Rotate 180 degrees
+        ctx.translate(-(x + cardWidth / 2), -(y + cardHeight / 2)); // Move back
+    }
+
+    drawCard(x, y, selectedCard.value, selectedCard.suit, suitColors[selectedCard.suit]);
+    
+    if (isReversed) {
+        ctx.restore();
+    }
+
+    
+    ctx.font = '36px Garamond, serif'; // Larger, old-style font
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; // Center vertically
+
+    const titleY = cardHeight + 110;
+    let value_word = values_in_words[selectedCard.value] ? values_in_words[selectedCard.value] : selectedCard.value;
+    let article = "aeiou".includes(value_word[0].toLowerCase()) ? "an" : "a";
+
+
+    ctx.fillText(`You got ${article} ${value_word} of ${selectedCard.suit}s.`, canvas.width / 2, titleY);
+
+    const meaningY = titleY + 50; // Adjust spacing as needed
+    const orientation = isReversed ? "Reversed" : "Upright";
+    const meaning = cardMeanings[selectedCard.suit][selectedCard.value][isReversed ? "reversed" : "upright"];
+    const fullMeaning = `${orientation}: ${meaning}`;
+    ctx.fillText(fullMeaning, canvas.width / 2, meaningY);
+}
+
+// Event Listener
+canvas.addEventListener('click', () => {
+    const x = event.clientX;
+    const y = event.clientY;
+    const cardX = canvas.width / 2 - cardWidth / 2;
+    const cardY = 80;
+
+    let above_card = x > cardX && x < cardX + cardWidth && y > cardY && y < cardY + cardHeight;
+    console.log(!selectedCard , above_card);
+    if (!selectedCard && above_card) { // Choose a card only on the first click
+        chooseRandomCard();
+        revealCard();
+    } else{
+        // clear the screen
+        ctx.fillStyle = "white";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "black";
+
+
+
+        drawInitialScreen();
+        selectedCard = null;
+    }
+});
+
+// if mouse above card, make a pointer mouse
+canvas.addEventListener('mousemove', (event) => {
+    const x = event.clientX;
+    const y = event.clientY;
+    const cardX = canvas.width / 2 - cardWidth / 2;
+    const cardY = 80;
+
+    if (x > cardX && x < cardX + cardWidth && y > cardY && y < cardY + cardHeight) {
+        canvas.style.cursor = 'pointer';
+    } else {
+        canvas.style.cursor = 'default';
+    }
+});
+
+const 
+values_in_words = {
+    "1": "Ace",
+    "2": "Two",
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven",
+    "8": "Eight",
+    "9": "Nine",
+    "10": "Ten",
+    "J": "Jack",
+    "Q": "Queen",
+    "K": "King"
+}
+
+// Start
+drawInitialScreen();
+
+
+
+</script>
+</body>
+
+</html>
