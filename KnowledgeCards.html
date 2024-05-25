@@ -450,6 +450,7 @@ function revealCard() {
     const titleY = cardHeight + 110;
     let value_word = values_in_words[selectedCard.value] ? values_in_words[selectedCard.value] : selectedCard.value;
     let article = "aeiou".includes(value_word[0].toLowerCase()) ? "an" : "a";
+    let plural_ending = selectedCard.suit.endsWith("s") ? "es" : "s";
 
 
     ctx.fillText(`You got ${article} ${value_word} of ${selectedCard.suit}s.`, canvas.width / 2, titleY);
