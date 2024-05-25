@@ -422,7 +422,7 @@ function chooseRandomCards() {
 function drawInitialScreen() {
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText("Focus on your question. What do you seek to know?", canvas.width / 2, 50);
+    ctx.fillText("Do you seek knowledge ..?", canvas.width / 2, 50);
     const cardSpacing = 50; // Adjust for desired spacing
     const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
 
@@ -461,6 +461,7 @@ function revealCard(card, x, y, label) {
     let article = "aeiou".includes(value_word[0].toLowerCase()) ? "an" : "a";
     let plural_ending = card.suit.endsWith("s") ? "es" : "s";
 
+    ctx.fillStyle = suitColors[card.suit];
 
     ctx.fillText(`You got ${article} ${value_word} of ${card.suit + plural_ending}.`, canvas.width / 2, titleY);
 
@@ -469,6 +470,8 @@ function revealCard(card, x, y, label) {
     const meaning = cardMeanings[card.suit][card.value][card.reversed ? "reversed" : "upright"];
     const fullMeaning = `${orientation}: ${meaning}`;
     ctx.fillText(fullMeaning, canvas.width / 2, meaningY);
+
+    ctx.fillStyle = "black";
 
     card.revealed = true;
 }
@@ -479,27 +482,15 @@ canvas.addEventListener('click', () => {
     const y = event.clientY;
 
     if(selectedCards.length === 0)  chooseRandomCards();
-    if (selectedCards.filter((card)=>!card.revealed)) { // If there are unrevealed cards
         // clear text below cards
-        ctx.clearRect(0, cardHeight + 130, canvas.width, canvas.height);
-        const cardSpacing = 50; 
-        const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
-        for (let i = 0; i < 3; i++) {
-            const cardX = startX + i * (cardWidth + cardSpacing);
-            if (x > cardX && x < cardX + cardWidth && y > 80 && y < 80 + cardHeight) {
-                revealCard(selectedCards[i], cardX, 100, ["Self", "Situation", "Challenges"][i]);
-            }
+    ctx.clearRect(0, cardHeight + 130, canvas.width, canvas.height);
+    const cardSpacing = 50; 
+    const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
+    for (let i = 0; i < 3; i++) {
+        const cardX = startX + i * (cardWidth + cardSpacing);
+        if (x > cardX && x < cardX + cardWidth && y > 80 && y < 80 + cardHeight) {
+            revealCard(selectedCards[i], cardX, 100, ["Self", "Situation", "Challenges"][i]);
         }
-    } else {
-        // clear the screen
-        ctx.fillStyle = "white";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "black";
-
-
-
-        drawInitialScreen();
-        selectedCards = [];
     }
 });
 
