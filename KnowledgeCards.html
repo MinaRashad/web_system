@@ -405,40 +405,49 @@ for (const suit of suits) {
 }
 
 // Card Selection
-let selectedCard = null;
-let isReversed = false;
+let selectedCards = []; // Array to hold 3 cards
 
-function chooseRandomCard() {
-    const randomSuit = suits[Math.floor(Math.random() * suits.length)];
-    const randomValue = values[Math.floor(Math.random() * values.length)];
-    isReversed = Math.random() < 0.5; // 50% chance of being reversed
-    selectedCard = { value: randomValue, suit: randomSuit, reversed: isReversed };
+function chooseRandomCards() {
+    selectedCards = []; 
+    for (let i = 0; i < 3; i++) {
+        const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+        const randomValue = values[Math.floor(Math.random() * values.length)];
+        const isReversed = Math.random() < 0.5; 
+        selectedCards.push({ value: randomValue, suit: randomSuit, reversed: isReversed, revealed:false });
+    }
 }
 
 // Initial Drawing
+// Initial Drawing (Modified)
 function drawInitialScreen() {
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText("Do you seek knowledge...?", canvas.width / 2, 50);
+    ctx.fillText("Focus on your question. What do you seek to know?", canvas.width / 2, 50);
+    const cardSpacing = 50; // Adjust for desired spacing
+    const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
 
-    drawCardBack(canvas.width / 2 - cardWidth / 2, 80); // Draw back in the center
+    for (let i = 0; i < 3; i++) {
+        const x = startX + i * (cardWidth + cardSpacing);
+        drawCardBack(x, 100); 
+        ctx.fillText(["Self", "Situation", "Challenges"][i], x + cardWidth / 2, 90); // Labels above cards
+    }
 }
 
 // Card Reveal
-function revealCard() {
-    const x = canvas.width / 2 - cardWidth / 2;
-    const y = 80;
+function revealCard(card, x, y, label) {
+    // const x = canvas.width / 2 - cardWidth / 2;
+    // const y = 80;
 
-    if (isReversed) {
+    if (card.reversed) {
         ctx.save();
         ctx.translate(x + cardWidth / 2, y + cardHeight / 2); // Move to center
         ctx.rotate(Math.PI); // Rotate 180 degrees
         ctx.translate(-(x + cardWidth / 2), -(y + cardHeight / 2)); // Move back
     }
 
-    drawCard(x, y, selectedCard.value, selectedCard.suit, suitColors[selectedCard.suit]);
+    drawCard(x, y, card.value, card.suit, suitColors[card.suit]);
     
-    if (isReversed) {
+    if (card.reversed) {
         ctx.restore();
     }
 
@@ -447,34 +456,41 @@ function revealCard() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle'; // Center vertically
 
-    const titleY = cardHeight + 110;
-    let value_word = values_in_words[selectedCard.value] ? values_in_words[selectedCard.value] : selectedCard.value;
+    const titleY = cardHeight + 150;
+    let value_word = values_in_words[card.value] ? values_in_words[card.value] : card.value;
     let article = "aeiou".includes(value_word[0].toLowerCase()) ? "an" : "a";
-    let plural_ending = selectedCard.suit.endsWith("s") ? "es" : "s";
+    let plural_ending = card.suit.endsWith("s") ? "es" : "s";
 
 
-    ctx.fillText(`You got ${article} ${value_word} of ${selectedCard.suit}s.`, canvas.width / 2, titleY);
+    ctx.fillText(`You got ${article} ${value_word} of ${card.suit + plural_ending}.`, canvas.width / 2, titleY);
 
     const meaningY = titleY + 50; // Adjust spacing as needed
-    const orientation = isReversed ? "Reversed" : "Upright";
-    const meaning = cardMeanings[selectedCard.suit][selectedCard.value][isReversed ? "reversed" : "upright"];
+    const orientation = card.reversed ? "Reversed" : "Upright";
+    const meaning = cardMeanings[card.suit][card.value][card.reversed ? "reversed" : "upright"];
     const fullMeaning = `${orientation}: ${meaning}`;
     ctx.fillText(fullMeaning, canvas.width / 2, meaningY);
+
+    card.revealed = true;
 }
 
 // Event Listener
 canvas.addEventListener('click', () => {
     const x = event.clientX;
     const y = event.clientY;
-    const cardX = canvas.width / 2 - cardWidth / 2;
-    const cardY = 80;
 
-    let above_card = x > cardX && x < cardX + cardWidth && y > cardY && y < cardY + cardHeight;
-    console.log(!selectedCard , above_card);
-    if (!selectedCard && above_card) { // Choose a card only on the first click
-        chooseRandomCard();
-        revealCard();
-    } else{
+    if(selectedCards.length === 0)  chooseRandomCards();
+    if (selectedCards.filter((card)=>!card.revealed)) { // If there are unrevealed cards
+        // clear text below cards
+        ctx.clearRect(0, cardHeight + 130, canvas.width, canvas.height);
+        const cardSpacing = 50; 
+        const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
+        for (let i = 0; i < 3; i++) {
+            const cardX = startX + i * (cardWidth + cardSpacing);
+            if (x > cardX && x < cardX + cardWidth && y > 80 && y < 80 + cardHeight) {
+                revealCard(selectedCards[i], cardX, 100, ["Self", "Situation", "Challenges"][i]);
+            }
+        }
+    } else {
         // clear the screen
         ctx.fillStyle = "white";
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -483,7 +499,7 @@ canvas.addEventListener('click', () => {
 
 
         drawInitialScreen();
-        selectedCard = null;
+        selectedCards = [];
     }
 });
 
@@ -491,14 +507,18 @@ canvas.addEventListener('click', () => {
 canvas.addEventListener('mousemove', (event) => {
     const x = event.clientX;
     const y = event.clientY;
-    const cardX = canvas.width / 2 - cardWidth / 2;
-    const cardY = 80;
+    let cursor = 'default'
 
-    if (x > cardX && x < cardX + cardWidth && y > cardY && y < cardY + cardHeight) {
-        canvas.style.cursor = 'pointer';
-    } else {
-        canvas.style.cursor = 'default';
-    }
+    for (let i = 0; i < 3; i++) {
+        const cardSpacing = 50; 
+        const startX = canvas.width / 2 - (cardWidth * 3 + cardSpacing * 2) / 2;
+            const cardX = startX + i * (cardWidth + cardSpacing);
+            if (x > cardX && x < cardX + cardWidth && y > 80 && y < 80 + cardHeight) {
+                cursor = 'pointer'
+            }
+        }
+    
+    canvas.style.cursor = cursor;
 });
 
 const 
