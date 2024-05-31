@@ -101,8 +101,7 @@
         margin-top: 5px;
     }
     
-    .file-icon::before { /* Icon content using Unicode characters */
-        content: "📄"; /* Default document icon */
+    .file-icon  .icon-content { /* Icon content using Unicode characters */
         font-size: 40px;
         display: block;
     }
@@ -142,19 +141,49 @@
         .context-menu button:hover {
             background-color: #f0f0f0;
         }
+
+        /* Prompt */
+        .prompt {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            border: 1px solid #111111;
+            padding: 20px;
+            z-index: 1001; /* Above context menu */
+            color: #202020;
+            padding: 3em;
+            font-size: large;
+        }
+
+        .prompt label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .prompt input,
+        .prompt select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+        }
     
 
     
     /* Specific icons using Unicode (replace as needed) */
-    [data-name="Knowledge Cards"]::before { content: "🧠"; }
-    [data-name="Piano"]::before { content: "🎹"; }
-    [data-name="Chess"]::before { content: "♟"; }
-    [data-name="Solar System"]::before { content: "🪐"; }
-    [data-name="Hearing Test"]::before { content: "👂"; } 
-    [data-name="Gardening Game"]::before { content: "🌱"; }
-    [data-name="HACKIT"]::before { content: "🔍"; } 
-    [data-name="Journal"]::before { content: "📓"; }  
+    [data-name="Knowledge Cards"] .icon-content::before { content: "🧠"; }
+    [data-name="Piano"] .icon-content::before { content: "🎹"; }
+    [data-name="Chess"] .icon-content::before { content: "♟"; }
+    [data-name="Solar System"] .icon-content::before { content: "🪐"; }
+    [data-name="Hearing Test"] .icon-content::before { content: "👂"; } 
+    [data-name="Gardening Game"] .icon-content::before { content: "🌱"; }
+    [data-name="HACKIT"] .icon-content::before { content: "🔍"; } 
+    [data-name="Journal"] .icon-content::before { content: "📓"; }  
     </style>
+    
     </head>
     
     <body>
@@ -176,33 +205,60 @@
         
     <div class="desktop">
         <div class="file-icon" data-name="Knowledge Cards" data-link="KnowledgeCards.html">
+            <span class="icon-content"></span>
             <span class="file-name">Knowledge Cards</span>
         </div>
         <div class="file-icon" data-name="Piano" data-link="piano.html">
+            <span class="icon-content"></span>
             <span class="file-name">Piano</span>
         </div>
         <div class="file-icon" data-name="Chess" data-link="chess.html">
+            <span class="icon-content"></span>
             <span class="file-name">Chess</span>
         </div>
         <div class="file-icon" data-name="Solar System" data-link="solarSystem.html">
+            <span class="icon-content"></span>
             <span class="file-name">Solar System</span>
         </div> 
         <div class="file-icon" data-name="Hearing Test" data-link="hearing_test.html">
+            <span class="icon-content"></span>
             <span class="file-name">Hearing Test</span>
         </div>
         <div class="file-icon" data-name="Gardening Game" data-link="gardening_game.html">
+            <span class="icon-content"></span>
             <span class="file-name">Gardening Game</span>
         </div>
         <div class="file-icon" data-name="HACKIT" data-link="HACKIT/index.html">
+            <span class="icon-content"></span>
             <span class="file-name">HACKIT</span>
         </div>
         <div class="file-icon" data-name="Journal" data-link="https://minarashad.github.io/AI-therapist/">
+            <span class="icon-content"></span>
             <span class="file-name">Journal</span>
         </div>
 
         </div>
+
+        <div class="context-menu" id="contextMenu">
+            <button onclick="location.reload()">Refresh</button>
+            <button onclick="showAddAppPrompt()">Add App</button> 
+            <button id="deleteAppButton" onclick="deleteApp()" style="display:none;">Delete</button>
+
+        </div>
+
+        <div class="prompt" id="addAppPrompt">
+            <label for="appName">App Name:</label>
+            <input type="text" id="appName">
+            <label for="appIcon">App Icon:</label>
+            <input type="text" id="appIcon">
+            <label for="appLink">App Link:</label>
+            <input type="text" id="appLink">
+            <button onclick="addApp()">Add</button>
+            <button onclick="hideAddAppPrompt()">Cancel</button>
+        </div>
     
     <script>
+        loadApps(); // Load apps on page load
         const fileIcons = document.querySelectorAll('.file-icon');
         fileIcons.forEach(icon => {
             const iconName = icon.dataset.name;
@@ -311,6 +367,96 @@
 
         updateStatus(); // Initial update
         setInterval(updateStatus, 1000); // Update every second
+
+
+        // Context Menu
+        const contextMenu = document.getElementById('contextMenu');
+
+        // Right-click event handler for desktop and file icons
+        document.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); // Prevent default context menu
+
+            const target = event.target;
+
+            // Check if the click is on the desktop or a file icon
+            if (target.classList.contains('desktop') || target.classList.contains('file-icon')) {
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = event.clientX + 'px';
+                contextMenu.style.top = event.clientY + 'px';
+            } else {
+                contextMenu.style.display = 'none'; 
+            }
+        });
+
+        // Hide context menu when clicking outside
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+
+        // Prompt
+        function showAddAppPrompt() {
+            document.getElementById('addAppPrompt').style.display = 'block';
+        }
+        function hideAddAppPrompt() {
+            document.getElementById('addAppPrompt').style.display = 'none';
+        }
+
+        function addApp() {
+            const name = document.getElementById('appName').value;
+            const icon = document.getElementById('appIcon').value;
+            const link = document.getElementById('appLink').value;
+            
+            const newApp = { name, icon, link };
+            
+            // Load existing apps or initialize an empty array
+            let apps = JSON.parse(localStorage.getItem('apps')) || [];
+            
+            // Add the new app
+            apps.push(newApp);
+            
+            // Store the updated apps
+            localStorage.setItem('apps', JSON.stringify(apps));
+            
+            location.reload()
+            // Create the icon element and append to the desktop
+            createAppIcon(newApp);
+            
+            document.getElementById('addAppPrompt').style.display = 'none';
+
+            location.reload();
+        }
+
+        function createAppIcon(app) {
+            const icon = document.createElement('div');
+            icon.classList.add('file-icon');
+            icon.dataset.name = app.name;
+            icon.dataset.link = app.link;
+            
+             // Create a span to hold the icon content (so we can target it with CSS)
+            const iconSpan = document.createElement('span');
+            iconSpan.classList.add('icon-content'); 
+            let appicon = app.icon;
+            if(appicon.length === 0) appicon = '📄'
+
+            iconSpan.textContent = appicon; // Directly set the icon content as text
+            icon.appendChild(iconSpan); 
+
+            const nameSpan = document.createElement('span');
+            nameSpan.classList.add('file-name');
+            nameSpan.textContent = app.name;
+            icon.appendChild(nameSpan);
+
+            // Add the icon to the desktop
+            document.querySelector('.desktop').appendChild(icon);
+
+            
+        }
+
+        // Load and create icons on page load
+        function loadApps() {
+            const apps = JSON.parse(localStorage.getItem('apps')) || [];
+            apps.forEach(createAppIcon);
+        };
     </script>
 </body>
 </html>
