@@ -242,7 +242,7 @@
         <div class="context-menu" id="contextMenu">
             <button onclick="location.reload()">Refresh</button>
             <button onclick="showAddAppPrompt()">Add App</button> 
-            <button id="deleteAppButton" onclick="deleteApp()" style="display:none;">Delete</button>
+            <button id="deleteAppButton" onclick="deleteApp(event)" style="display:none;">Delete</button>
 
         </div>
 
@@ -258,6 +258,7 @@
         </div>
     
     <script>
+        let targetedIcon;
         loadApps(); // Load apps on page load
         const fileIcons = document.querySelectorAll('.file-icon');
         fileIcons.forEach(icon => {
@@ -315,7 +316,6 @@
 
             // Follow link on double click
             icon.addEventListener('dblclick', () => {
-                console.log
                 window.location.href = icon.dataset.link; // Use the 'data-link' attribute for the URL
             });
 
@@ -377,21 +377,73 @@
             event.preventDefault(); // Prevent default context menu
 
             const target = event.target;
+            const isFileIcon = target.classList.contains('file-icon') || target.parentElement.classList.contains('file-icon');
 
             // Check if the click is on the desktop or a file icon
-            if (target.classList.contains('desktop') || target.classList.contains('file-icon')) {
+            if (target.classList.contains('desktop') || isFileIcon) {
                 contextMenu.style.display = 'block';
                 contextMenu.style.left = event.clientX + 'px';
                 contextMenu.style.top = event.clientY + 'px';
             } else {
                 contextMenu.style.display = 'none'; 
             }
+
+            const deleteButton = document.getElementById('deleteAppButton');
+            if (isFileIcon) {
+                targetedIcon = target.classList.contains('file-icon') ? target : target.parentElement;
+                deleteButton.style.display = 'block';
+
+                // get the name of the clicked icon
+                appname = target.dataset.name;
+                if (!appname) appname = target.parentElement.dataset.name;
+
+                // if in apps, it can be deleted
+                let apps = JSON.parse(localStorage.getItem('apps')) || [];
+                let app = apps.filter(app => app.name === appname)[0]
+
+                if (app) {
+                    deleteButton.disabled = false;
+                } else {
+                    deleteButton.disabled = true;
+
+                }
+            } else {
+                deleteButton.style.display = 'none';
+            }
         });
 
         // Hide context menu when clicking outside
         document.addEventListener('click', () => {
-            contextMenu.style.display = 'none';
+            hideContextMenu();
         });
+
+
+        // Delete App
+        function deleteApp() {
+
+            let apps = JSON.parse(localStorage.getItem('apps')) || [];
+
+            // if it is in apps, it can be deleted
+            let app = apps.filter(app => app.name === targetedIcon.dataset.name)[0]
+            
+            if (app) { 
+                const appName = targetedIcon.dataset.name;
+
+                // Remove from local storage
+                apps = apps.filter(app => app.name !== appName);
+                localStorage.setItem('apps', JSON.stringify(apps));
+            
+                // Remove from the desktop
+                targetedIcon.remove();
+            }
+            hideContextMenu();
+        }
+
+        
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
 
         // Prompt
         function showAddAppPrompt() {
