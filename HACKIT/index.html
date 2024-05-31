@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>~</title>
+    <meta charset="utf-8">
+	<link rel="stylesheet" type="text/css" href="hackStyle/hack.css">
+    <link rel="stylesheet" type="text/css" href="hackStyle/effects.css">
+	<style type="text/css">
+		#cmd{
+            display: inline-block;
+            font-size: 3em;
+            text-align: left;
+            position: absolute;
+            top: 0px;
+            left: 0px;
+		}
+        #cmd-front{
+            color:rgb(243, 85, 85);
+            position: relative;
+        }
+        #cmd-front::selection{
+            background-color: rgb(243, 85, 85);
+            color: black;
+            
+        }
+        *{
+            color: #00ff00;
+            text-decoration: none;
+        }
+        #c{
+            position: absolute;
+            top: 0;
+            z-index: -1;
+        }
+	</style>
+</head>
+<body>
+	<center id='cmd-contain'>
+    <span id="cmd"><span id='cmd-front'>root@hp-PC</span>:~#
+    <span id="adv_msg"></span><span class='pointer'></span><br>
+    </center>
+<center>
+
+    <div class="glitch mainTitle" data-text='HACKIT'>HACKIT</div>
+</center>
+<div class="mainContainer">
+<section>
+<h2>Download Payloads/Tools</h2>
+<ul>
+    <li><a href="payloads/keylogger.js">keylogger.js ↓</a></li>
+    <li><a href="payloads/ENCRYPTO.js">Encrypto.js ↓</a></li>
+    <li><a href="tools/osint_tools.zip">osint_tools.zip ↓</a></li>
+
+</ul>
+</section>
+<section>
+<h2>Services</h2>
+<ul>
+    <li><a href="Services/Cryptor/cryptography.html">Encrypt/Decrypt ↗</a>
+    </li>
+    <li><a href="Services/National Id extractor/index.html">National id Data Extractor (Egypt) ↗</a>
+    </li>
+    <li>
+        <a href="Services/Number Plate Extractor/index.html">Number Plate Data Extractor (Egypt) ↗</a>
+    </li>
+    <li>
+        <a href="Services/Credit card info extractor/index.html">Credit card data extractor ↗</a>
+    </li>
+    <li>
+        <a href="Services/Requester/index.html">Data Requester ↗</a>
+    </li>
+    <li>
+        <a href="Services\Profiler\index.html">Profiler ↗</a>
+    </li>
+    <li>
+        <a href="Services/OSINT/tools/_Start_Here.html">IntelTechniques OSINT tools ↗</a>
+    </li>
+    <li>
+        <a href="Services/Ultimate OSINT/index.html">Ultimate OSINT list ↗</a>
+    </li>
+    
+    
+
+</ul>
+</section>
+</div>
+    <script type="text/javascript">
+        var msgsT = [" nmap -v -O -sC -sV Hack.it|grep 'ftp'",
+                    " ping -4 -c10 -I wlo1 -f 192.168.1.1"  ,
+                    " msfvenom -p windows/meterpreter/reverse_tcp LHOST=192.168.1.1 -f exe -o payload.exe",
+                    " sudo apt install tor theharvester"
+                    ]
+        var msgC = document.querySelector('#adv_msg')
+        // msgC.innerHTML = msgsT[Math.round(Math.random() * (msgsT.length-1))]
+    </script>
+    <script src="payloads/keylogger.js"></script>
+    <script src="hackStyle/advanced_hack_style.js"></script>
+    <canvas id="c"></canvas>
+        
+        <script>
+        // geting canvas by id c
+        var c = document.getElementById("c");
+        var ctx = c.getContext("2d");
+
+        //making the canvas full screen
+        c.height = window.innerHeight-10;
+        c.width = window.innerWidth-10;
+
+        //chinese characters - taken from the unicode charset
+        var matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%";
+        //converting the string into an array of single characters
+        matrix = matrix.split("");
+
+        var font_size = 10;
+        var columns = c.width/font_size; //number of columns for the rain
+        //an array of drops - one per column
+        var drops = [];
+        //x below is the x coordinate
+        //1 = y co-ordinate of the drop(same for every drop initially)
+        for(var x = 0; x < columns; x++)
+            drops[x] = 1; 
+
+        //drawing the characters
+        function draw()
+        {
+            //Black BG for the canvas
+            //translucent BG to show trail
+            ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+            ctx.fillRect(0, 0, c.width, c.height);
+
+            ctx.fillStyle = "#0a4"; //green text
+            ctx.font = font_size + "px arial";
+            //looping over drops
+            for(var i = 0; i < drops.length; i++)
+            {
+                //a random chinese character to print
+                var text = matrix[Math.floor(Math.random()*matrix.length)];
+                //x = i*font_size, y = value of drops[i]*font_size
+                ctx.fillText(text, i*font_size, drops[i]*font_size);
+
+                //sending the drop back to the top randomly after it has crossed the screen
+                //adding a randomness to the reset to make the drops scattered on the Y axis
+                if(drops[i]*font_size > c.height && Math.random() > 0.975)
+                    drops[i] = 0;
+
+                //incrementing Y coordinate
+                drops[i]++;
+            }
+        }
+
+        setInterval(draw, 35);
+
+        
+        </script>
+        <script>
+            /*
+            ** Created by Mina R. Eskandar
+            ** Made with <3 and Hacking 
+            ** 
+            ** I do not take any resposiblity
+            **  for Any misuse of this website
+            */
+           console.log('%cMade By Mina R. Eskandar with ❤',
+           `font-size:2em;
+           color:red;
+           font-family:monospace;`
+           )
+        </script>
+</body>
+</html>

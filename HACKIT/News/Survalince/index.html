@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>~/Monitor</title>
+	<link rel="stylesheet" type="text/css" href="../../hackStyle/hack.css">
+	<link rel="stylesheet" type="text/css" href="../../main_style.css">
+	<style type="text/css">
+        input, button{
+            color:#000;
+        }
+        *{
+        	font-size: 3vw;
+        	font-family: monospace;
+            color: #00ff00;
+            text-decoration: none;
+        }
+        path{
+        	font-size: 6vw;
+        	font-weight: bolder;
+        }
+
+        #data{
+        	font-weight: bold;
+        	margin: 5vh;
+        	color: #00ff00
+        }
+        a{
+        	display: inline-block;
+        	position: absolute;
+        	left: 0vw;
+        	top: 0vh;
+        	color:red;
+
+        }
+        iframe{
+            margin: 0 !important;
+            width: 22vw;
+            height: 22vh;
+        }
+        .language{
+            font-size: 1vw;
+            font-weight: bold;
+            color: #00ff00;
+            width: 80vw;
+            background:linear-gradient(to right, #000000, #003300);
+        }
+	</style>
+<script src="https://www.youtube.com/iframe_api"></script>
+
+</head>
+<body>
+<center>
+    <path>HACKIT:~/Monitor#</path>
+</center>
+<br>
+<div>
+    <div class="language">English</div>
+    <iframe src="https://www.youtube-nocookie.com/embed/9Auq9mYxFEE?autoplay=1&mute=1" title="YouTube video player" frameborder="0"  allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/gCNeDWCI0vo?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/jhRz04kl4s0?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/h3MuIUNCCzI?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/pqabxBKzZ6M?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/NQjabLGdP5g?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/pykpO5kQJ98?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/itdpuGHAcpg?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/gYUfs9RX95s?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://rumble.com/embed/vtp5hp/?pub=4&autoplay=1"                    title="Funded by Russia"     frameborder="0" allowfullscreen></iframe>
+    <div class="language">Arabic</div>
+    <iframe src="https://www.youtube-nocookie.com/embed/HxI2TxhhS9A?autoplay=1&mute=1" title="YouTube video player" frameborder="0"  allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/St61kDYyrvk?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/_rewJPptlBg?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/8BZpOolYLUA?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/f6VpkfV7m4Y?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/e2RgSa1Wt5o?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/8D5QY5gw_Xk?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/bNyUyrR0PHo?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/St61kDYyrvk?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/yd_H1PwIB0E?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/DHxTezBHwr8?autoplay=1&mute=1" title="YouTube video player" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://rutube.ru/play/embed/1bf2ee9dc3e20b4cb5a7ed4833bd7cb2" title="Funded by Russia" frameBorder="0" allow="clipboard-write; autoplay" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>  
+</div>
+<a href="../../index.html">Home↩</a>
+<script type="text/javascript">
+    document.addEventListener("keydown", function(event) {
+    if (event.key === "m" || event.key === "M") {
+        // Get all the YouTube video elements
+        var videos = document.getElementsByTagName("iframe");
+        alert("Gotcha");
+        // Iterate over each video element and unmute it
+        for (var i = 0; i < videos.length; i++) {
+        var player = new YT.Player(videos[i]);
+        player.unMute();
+        }
+    }
+    });
+
+</script>
+
+</html>

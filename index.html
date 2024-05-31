@@ -118,6 +118,30 @@
         color: white; /* Blue on hover */
         background-color: #2e3339;
     }
+
+
+
+    /* Context Menu */
+    .context-menu {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            z-index: 1000; /* Ensure it's above other elements */
+        }
+
+        .context-menu button {
+            background-color: transparent;
+            border: none;
+            padding: 8px 16px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .context-menu button:hover {
+            background-color: #f0f0f0;
+        }
     
 
     
@@ -127,7 +151,9 @@
     [data-name="Chess"]::before { content: "♟"; }
     [data-name="Solar System"]::before { content: "🪐"; }
     [data-name="Hearing Test"]::before { content: "👂"; } 
-    [data-name="Gardening Game"]::before { content: "🌱"; } 
+    [data-name="Gardening Game"]::before { content: "🌱"; }
+    [data-name="HACKIT"]::before { content: "🔍"; } 
+    [data-name="Journal"]::before { content: "📓"; }  
     </style>
     </head>
     
@@ -166,6 +192,12 @@
         </div>
         <div class="file-icon" data-name="Gardening Game" data-link="gardening_game.html">
             <span class="file-name">Gardening Game</span>
+        </div>
+        <div class="file-icon" data-name="HACKIT" data-link="HACKIT/index.html">
+            <span class="file-name">HACKIT</span>
+        </div>
+        <div class="file-icon" data-name="Journal" data-link="https://minarashad.github.io/AI-therapist/">
+            <span class="file-name">Journal</span>
         </div>
 
         </div>

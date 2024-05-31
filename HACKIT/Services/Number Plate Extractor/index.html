@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>~/Number-Plates-Extractor</title>
+	<link rel="stylesheet" type="text/css" href="../../hackStyle/hack.css">
+	<link rel="stylesheet" type="text/css" href="../../main_style.css">
+	<style type="text/css">
+        input, button{
+            color:#000;
+        }
+        *{
+        	font-size: 1vw;
+        	font-family: monospace;
+            color: #00ff00;
+            text-decoration: none;
+        }
+        path{
+        	font-size: 6vw;
+        	font-weight: bolder;
+        }
+        a{
+        	display: inline-block;
+        	position: absolute;
+        	left: 0vw;
+        	top: 0vh;
+        	color:red;
+        	font-size: 2vw;
+
+        }
+        #container{
+        	display: flex;
+        	flex-direction: column;
+        	position: absolute;
+        	right:50%;
+        	width: 60vw;
+        	height: 30vw;
+			/*
+			position: absolute;
+        	right: 50%;*/
+        	transform: translate(50%,0%);
+        	background-color: white;
+
+        }
+        ::selection{
+        	background-color: unset;
+        	color: unset;
+        }
+        #ground{
+        	background-color:#09f;
+        	height: 33%;
+        }
+
+        #ground span{
+        	color: black;
+        	font-family:monospace;
+        	font-size: 7vw;
+        }
+        #main span{
+        	display: inline-block;
+        	position: absolute;
+        	color: black;
+        	width: 50%;
+        	height: 77%;
+        	font-size: 11vw;
+        	font-family: serif;
+        }
+		/******************************************/
+		select{
+			width: 3cm;
+			background-color: #09f;
+			color: #09f;
+		}
+		#result{
+			width: 40vw;
+			height: 55vh;
+			background-color: #000d;
+			position: absolute;
+			right: 50%;
+			bottom: 50%;
+			transform: translate(50%,50%);
+			color: #0f0;
+			display: none;
+		}
+
+	</style>
+</head>
+<body>
+<center>
+    <path>HACKIT:~/extractor#</path>
+</center>
+<br>
+<div id="container">
+	<div id="ground">
+		<span style="display: inline-block;position: absolute;left: 0;">Egypt</span>
+		<span style="display: inline-block;position: absolute;right: 0;">مصر</span>
+	</div>
+	<div id="main">
+		<span id="num" style="left:0;border-right: 2px solid black">
+			1235
+		</span>
+		<span id="letters" style="font-size: 10vw;right: 0;direction: rtl;border-left: 2px solid black" onload="removeZeroWidth(this)">
+			س&zwnj;س&zwnj;س
+		</span>
+	</div>
+</div>
+<div id="input">
+	<label>Top Color:</label>
+	<br>
+	<select id="color" onchange="updateColor(this)" value="#09f">
+		<option value="#09f">Sky Blue</option>
+		<option value="blue">Blue</option>
+		<option value="green">Green</option>
+		<option value="yellow">Yellow</option>
+		<option value="orange">Orange</option>
+		<option value="red">Red</option>
+		<option value="brown">Brown</option>
+		<option value="beige">Beige</option>
+		<option value="grey">Grey</option>
+		<option value="black">Black</option>
+
+
+	</select><br>
+	<label>Numbers:</label><br>
+	<input type="text" maxlength="4" minlength="3" placeholder="1235" oninput="updateNumber(this.value)" pattern="[1-9]+" id="Rawnum">
+	<br>
+	<label>Letters:</label><br>
+	<input style="direction: rtl;" type="text" maxlength="3" minlength="2"  oninput="updateLetter(this.value)" placeholder="ب&zwnj;ي&zwnj;ت" pattern="[ا-ي]+" id="rawLetters">
+	<br>
+
+	<button onclick="getResults()">
+		Analyze
+	</button>
+</div>
+<div id="result" style="z-index: 3;">
+	<div style="background-color:#111;">
+	<span style="font-size: 3vw;cursor: pointer;" onclick="document.getElementById('result').style.display='none';document.getElementById('cover').style.display='none';">
+	X</span></div>
+	<center>معلومات المركبة</center><br>
+	<div dir="rtl" style="padding: 10px;">
+		نوع المركبة:<span id="carType"></span><br><br>
+		المحافظة: <span id="city"></span><br><br>
+		&nbsp;<h3>المزيد من المعلومات:</h3>
+		لوحة <span id="isBanned"></span><br><br>
+
+		<a style="position: unset;font-size: unset;color: green" href="https://ppo.gov.eg/webcenter/portal/PPOPortal/pages_publicservices/trafficservices" target="_blank">مخالفات ↗</a> الرخصة موقع النيابة العامة<br>
+		<a style="position: unset;font-size: unset;color: green" href="https://www.egypt.gov.eg/mobile/services/NTPMOJ-GG/functions/PayFines.aspx" target="_blank">مخالفات ↗</a> الرخصة موقع المرور<br>
+		<a style="position: unset;font-size: unset;color: green" href="https://lo7tak.com.eg" target="_blank">لوحتك ↗</a>موقع لوحتك للوحات المميزة و المخصصة <br>
+		
+		
+	</div>
+</div>
+<div id="cover" style="position: absolute;right: 0;top: 0;width: 100vw;height:100vh;background-color: rgb(0,0,0,0.5);display: none;"></div>
+<a href="../../index.html">Home↩</a>
+<script type="text/javascript">
+	let topBar = document.getElementById('ground')
+	let numBar = document.getElementById('num')
+	let letterBar = document.getElementById('letters')
+	let colorElem = document.getElementById('color')
+	let cover = document.getElementById('cover')
+
+
+let updateColor = (color)=>{
+	color.style.backgroundColor = color.value
+	color.style.color = color.value
+	topBar.style.backgroundColor = color.value
+}
+let updateNumber =(num)=>{
+	numBar.innerHTML=num
+}
+let updateLetter =(letter)=>{
+	letter=letter.split('').join('&zwnj;')
+
+	letterBar.innerHTML=letter
+}
+let cityElem = document.getElementById('city')
+let typeElem = document.getElementById('carType')
+let isBanned = document.getElementById('isBanned')
+let resultBox = document.getElementById('result')
+
+let getResults = ()=>{
+	let color = colorElem.value
+	let number = document.getElementById('Rawnum').value
+	let letters = document.getElementById('rawLetters').value
+
+	if(!(color&&number&&letters)){alert('A value is missing');return 0;}
+
+	if(! ((/[1-9]+$/g).test(number) && number.length >=3)){
+		alert(`The Numbers are Wrong or missing.\n
+			   This might indicate it was a costume plate.
+			   Information will be guessed`); 
+		number="1111"
+	}
+	if(! ((/[ا-ي]+$/g).test(letters) && letters.length >=2)){
+		alert('The letters are Wrong or not Arabic');return 0;
+	}
+	
+	let type = Data['type'][color]
+	let city = 'غير معروف'
+	if(number.length ==4&& letters.length==3){
+		city=Data['city'][letters[0]]?Data['city'][letters[0]]:Data['city'][letters.slice(0,2)]
+	}else if (number.length==4) {
+		city = 'الجيزة'
+	}else if (letters.length==3 && number.length ==3) {
+		city = 'القاهرة'
+	}else{
+		city = "لا يمكن التحديد ( لوحة مميزة او مخصصة)"
+	}
+	cityElem.innerText=city?city:"غير معروف"
+	typeElem.innerText=type
+	isBanned.innerText=Banned(letters,number)?"ممنوعة او مزورة":"غير ممنوعة"
+	resultBox.style.display='block'
+	cover.style.display = 'block';
+}
+
+let Data = {
+	'type':{
+		"#09f":"مركبة خاصة","blue":"مركبة الشرطة","green":"مركبة الدبلوماسية","yellow":"مركبة غير مدفوعة الجمارك",
+		"orange":"سيارة أجرة","red":"شاحنة","brown":"مركبة تجارية","beige":"ليموزين او حافلة السياحية","grey":"حافلة","black":"ترخيص تحت الطلب",
+	},
+	'city':{
+		'ه':"سوهاج",
+		'س':"الإسكندرية",'ر':"الشرقية",'د':"الدقهلية",'ب':"البحيرة",'ع':"الغربية",'م':"المنوفية",
+		'ق':"القليوبية",'ل':"كفر الشيخ",'ف':"الفيوم",'و':"بني سويف",'ن':"المنيا",'ي':"اسيوط",
+		'جه':"مطروح",'جب':"الوادي الجديد",'صا':"قنا",'صق':"الأقصر",'صو':"أسوان",'طس':"السويس",
+		'طص':"الإسماعيلية",'طع':"بورسعيد",'طد':"دمياط",'طا':"شمال سيناء",'طج':"جنوب سيناء",'طر':"البحر الأحمر",
+		
+	}
+}
+Banned=function(letters,n){
+	return letters.replace(/ت|ث|ح|خ|ذ|ز|ش|ض|ظ|غ|ك/g,'').length != letters.length || n.indexOf('0') != -1
+}
+/*
+	ابجدرسصطعفقلمنهوى*/
+
+updateColor(cityElem)
+updateLetter(document.getElementById('Rawnum').value)
+updateLetter(document.getElementById('rawLetters').value)
+
+</script>
+
+</html>

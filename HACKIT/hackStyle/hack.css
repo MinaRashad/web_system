@@ -1,0 +1,57 @@
+body{
+	background-color: black;
+	font-family: monospace;
+	color: rgb(4,178,0);
+}
+h1{
+	font-size: 10vw !important;
+}
+.mainContainer{
+	display: flex;
+	flex-direction: row;
+}
+section{
+	font-size: 1vw;
+	margin: 1vw;
+}
+.mainTitle{
+	/*text-shadow: 0px  0px  20px #0f0;*/
+	font-size: 10vw;
+	display: black;
+	margin: 4vw;
+}
+#cmd-contain{
+	font-size: 1vw;
+}
+.pointer{
+	animation: flash 1s infinite;
+}
+.pointer::after{
+	content: "|";
+}
+.box{
+	border: dashed green 5px;
+}
+
+table{
+	font-size: 40px;
+}
+@keyframes flash{
+	0%{
+		background-color: rgba(0,255,0,0);
+		color: rgba(0,255,0,0);
+	}
+	50%{
+		background-color: rgba(0,255,0,255);
+		color: rgba(0,255,0,0);
+	}
+	100%{
+		background-color: rgba(0,255,0,0);
+		color: rgba(0,255,0,0);
+	}
+}
+
+::selection{
+	color: black;
+	background-color: #0f0;
+}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>~/credit-Extractor</title>
+	<link rel="stylesheet" type="text/css" href="../../hackStyle/hack.css">
+	<link rel="stylesheet" type="text/css" href="../../main_style.css">
+	<style type="text/css">
+        input, button{
+            color:#000;
+        }
+        *{
+        	font-size: 3vw;
+        	font-family: monospace;
+            color: #00ff00;
+            text-decoration: none;
+        }
+        path{
+        	font-size: 6vw;
+        	font-weight: bolder;
+        }
+        #container{
+        	text-align: center;
+        	display: flex;
+        	flex-direction: column;
+        	width: 50vw;
+/*        	position: absolute;
+        	right: 50%;*/
+        	transform: translate(50%,0%);
+        }
+        #data{
+        	font-weight: bold;
+        	margin: 5vh;
+        	color: #00ff00
+        }
+        a{
+        	display: inline-block;
+        	position: absolute;
+        	left: 0vw;
+        	top: 0vh;
+        	color:red;
+
+        }
+	</style>
+</head>
+<body>
+<center>
+    <path>HACKIT:~/credit-card#</path>
+	<span style="color: red; margin: 0; padding: 0; font-size: 3vh; align-self: center; display: block;">
+		It works with all cards debit, credit, prepaid,..</span>
+</center>
+
+<br>
+<div id="container">
+<input 
+	type="text" 
+	id="credit" 
+	placeholder="cc Number"
+	minlength="15"
+	maxlength="16" 
+	style="text-align: center;"
+	>
+
+<button id="btn">
+	extract Data
+</button>
+
+<div id="data">
+	Data extracted will be here
+</div>
+</div>
+<a href="../../index.html">Home↩</a>
+<script type="text/javascript">
+	ccNumberDOM = document.getElementById('credit')
+	data_view = document.getElementById('data')
+	btn = document.getElementById('btn')
+
+	// database in RAM
+	let fields = []
+	let verified_fields = []
+
+	lenders = {
+		"3": "American Express",
+		"4": "Visa",
+		"5": "MasterCard",
+		"6": "Discover Card"
+	}
+
+	extract = (ccNumber)=>{
+		let card = {
+			"ccNumber": ccNumber
+		}
+
+		card.issuer = lenders[ccNumber[0]] || "Unknown" 
+		card.bin = ccNumber.slice(0,6)
+		card.iin = ccNumber.slice(0,8)
+
+		 // Determine the length of the account number based on the length of the credit card number
+		 let accountNumberLength = 0;
+		if (ccNumber.length == 15) accountNumberLength = 4;  // American Express
+		else accountNumberLength = ccNumber.length - 8;  // Other brands
+		
+		// Extract the last few digits (account number)
+		const startIndex = ccNumber.length - accountNumberLength;
+		const accountNumber = ccNumber.substring(startIndex);
+
+		card.accountNumber = accountNumber
+
+		return card
+
+	}
+
+	isValid = (ccNumber)=>{
+		// Remove all non-digit characters from the credit card number
+		ccNumber = ccNumber.replace(/\D/g, "");
+  
+		// Check the length of the credit card number
+		if (ccNumber.length < 13 || ccNumber.length > 19) return false;
+		
+		// Check the Luhn algorithm
+		let sum = 0;
+		for (let i = 0; i < ccNumber.length; i++) {
+			let digit = parseInt(ccNumber.charAt(i));
+			if (i % 2 == ccNumber.length % 2) digit *= 2;
+			if (digit > 9) digit -= 9;
+			sum += digit;
+		}
+		if (sum % 10 != 0) return false;
+		
+		return true;
+	}
+
+	async function readCSV(filename) {
+		let res= await fetch(filename);
+		const csv = await res.text();
+		const lines = csv.split("\n");
+		fields = lines.map((line) => line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/));
+	}
+
+
+	async function getBankData(ccNumber) {
+		// Remove all non-digit characters from the credit card number
+		ccNumber = ccNumber.replace(/\D/g, "");
+
+		// Extract the first 6 digits of the credit card number
+		const bin = ccNumber.slice(0, 6);
+
+		// Find the card data that matches the BIN
+		const bankData = fields.find((field) => field[0] == bin);
+
+		// Return the card data
+		return bankData;
+	}
+	
+
+btn.addEventListener('click',async ()=>{
+	if(fields.length==0) await readCSV('./ranges.csv')
+	
+	if(!isValid(ccNumberDOM.value)){
+		data_view.innerText = "Credit card number is Invalid"
+		return
+	}else{
+		card = extract(ccNumberDOM.value)
+		data_view.innerText = `Issuer: ${card.issuer}\nBIN: ${card.bin}\nIIN: ${card.iin}\nAccount Number: ${card.accountNumber}\nFinding Bank details...`
+	}
+
+	let bank = await getBankData(ccNumberDOM.value)
+	if(!bank) // try less verified data
+		{
+		verified_fields = JSON.parse(JSON.stringify(fields))
+		await readCSV('./binlist-data.txt')
+		bank = await getBankData(ccNumberDOM.value)
+	}
+	if(bank){
+		data_view.innerText = `Issuer: ${card.issuer}\nBIN: ${card.bin}\nIIN: ${card.iin}\nAccount Number: ${card.accountNumber}`
+		data_view.innerText += `\n************\nBank: Found\n************`
+		let fieldNames = fields[0]
+		for (let i = 1; i < fieldNames.length; i++) {
+			if (bank[i].length>1)	data_view.innerText += `\n${fieldNames[i].replace('_',' ')}: ${bank[i]}`
+		}
+
+	}
+	else{
+		data_view.innerText += `\nBank: Not Found`
+	}
+	// restore verified fields
+	fields = JSON.parse(JSON.stringify(verified_fields))
+	verified_fields = []
+}
+)
+
+
+
+
+</script>
+
+</html>

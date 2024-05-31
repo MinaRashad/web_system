@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Simple Checker Game</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+    }
+    #checkerboard {
+        border-collapse: collapse;
+        /* center */
+        margin-left: auto;
+        margin-right: auto;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .square {
+        width: 85px;
+        height: 85px;
+        text-align: center;
+        /* make font as big as square */
+        font-size: 65px;
+        user-select: none;
+    }
+
+    .white {
+        background-color: #f0d9b5;
+    }
+
+    .black {
+        background-color: #b58863;
+    }
+
+    .white, .black {
+        border: 1px solid black;
+    }
+    .highlight {
+        background-color: #99ccff;
+    }
+    .capture-highlight {
+        background-color: #ff6666;
+    }
+    .selected { /* New style for highlighting the selected piece */
+        background-color: #ffff99; 
+    }
+    #move-history {
+        list-style: none;
+        padding: 0;
+        margin-top: 20px;
+        font-family: monospace;
+        overflow-y: scroll;
+        max-height: 60vh;
+        max-width: 5vw;
+        scroll-behavior: smooth;
+        background-color: beige;
+        scrollbar-width: none;
+        border: 1px solid #ddd; /* Add a subtle border */
+        border-radius: 5px; /* Add rounded corners */
+}
+
+    #move-history li {
+        margin-bottom: 5px; /* Add space between moves */
+    }
+    #turn-display {
+        position: absolute;
+        top: 10px;
+        right: 10px; /* Display on the right */
+        font-size: 18px; /* Increase font size for visibility */
+    }
+</style>
+</head>
+<body>
+    <table id="checkerboard">
+    </table>
+
+         <div id="move-history"></div>
+         <ol id="turn-display"></ol>
+
+<script>
+
+
+    /** INITIAL DEFINITIONS **/
+    class CheckerPiece {
+        constructor(color, position, symbol) {
+            this.color = color;
+            this.position = position;
+            this.symbol = symbol;
+            this.isKing = false;
+            this.canCapture = false;
+            this.pieceJump = null
+        }
+
+        getValidMoves(pieces) {
+            let validMoves = [];
+            const [col, row] = this.position; // Get column ('a'-'h') and row (1-8)
+            const rowDirection = this.color === 'white' ? 1 : -1; // Move direction based on color
+
+            
+
+            // Standard pawn moves
+            if (!this.isKing) {
+                [-1, 1].forEach(dxy => { // change in dx and dy
+                    
+                    const moveCol = String.fromCharCode(col.charCodeAt(0) + dxy); // Right or left
+
+                    const moveRow = parseInt(row) + rowDirection;
+
+                    if (this.canCapture) {
+                        // add capture moves
+                        validMoves = validMoves.concat(this.checkCapture(moveCol, moveRow));
+                        return;
+                    }
+
+                    if (this.isValidSquare(moveCol, moveRow)) {
+                        validMoves.push(moveCol + moveRow);
+                    } else { // Check for captures
+                        let capture = this.checkCapture(moveCol, moveRow);
+                        if (capture.length > 0) {
+                            validMoves = capture;
+                        }
+                    }
+                });
+            } else { // King moves
+                for (let colOffset = -1; colOffset <= 1; colOffset += 2) { // -1, 1 for both directions
+                    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 2) { // -1, 1 for both directions
+                        let currentCol = col;
+                        let currentRow = row;
+                        while (true) {
+                            currentCol = String.fromCharCode(currentCol.charCodeAt(0) + colOffset);
+                            currentRow += rowOffset;
+                            if (!this.isValidSquare(currentCol, currentRow)) {
+                                break;
+                            }
+                            validMoves.push(currentCol + currentRow);
+                            if (pieces.some(p => p.position === currentCol + currentRow)) { // Check for captures
+                                break; // Stop after capturing
+                            }
+                        }
+                    }
+                }
+            }
+
+            return validMoves;
+        }
+        
+        checkCapture(moveCol, moveRow){
+                const [col, row] = this.position; // Get column ('a'-'h') and row (1-8)
+                const rowDirection = this.color === 'white' ? 1 : -1; // Move direction based on color
+
+                const jumpedPiece = pieces.find(p => p.position === moveCol + moveRow);
+                if (jumpedPiece && jumpedPiece.color !== this.color) {
+                    const landCol = String.fromCharCode(moveCol.charCodeAt(0) + (moveCol > col ? 1 : -1));
+                    const landRow = moveRow + rowDirection;
+                    if (this.isValidSquare(landCol, landRow)) {
+                        this.canCapture = true;
+
+                        let validMoves= [landCol + landRow];
+                        this.pieceJump = jumpedPiece;
+                        console.log(validMoves)
+                        return validMoves;
+                    }
+                }
+                return [];
+            }
+
+        isValidSquare (newCol, newRow){
+            let valid = newCol >= 'a' && newCol <= 'h' && newRow >= 1 && newRow <= 8 && 
+                !pieces.some(p => p.position === newCol + newRow);
+            return valid; 
+        };
+    }    
+    
+    let pieces = [];
+
+    // create board
+    const checkerboard = document.getElementById('checkerboard');
+
+    function MovePiece(start, end) {
+        const startSquare = document.getElementById(start);
+        const endSquare = document.getElementById(end);
+        // Update piece's position in our pieces array
+        const piece = pieces.find(p => p.position === start);
+        let captured = false;
+                
+        if (piece) {
+            piece.position = end;
+
+            piece.hasMoved = true;
+
+            endSquare.textContent = piece.symbol;
+            startSquare.textContent = '';
+        }
+        
+
+        if (piece.canCapture) {
+            // Remove the captured piece
+            const capturedPieceIndex = pieces.indexOf(piece.pieceJump);
+            pieces.splice(capturedPieceIndex, 1);
+            document.getElementById(piece.pieceJump.position).textContent = '';
+            piece.pieceJump = null;
+            captured = true;
+        }
+        
+        // check for capture for opposite colors
+        // get surround pieces
+
+        end = end.split('');
+        let col = end[0];
+        let row = end[1];
+        let surround = [[String.fromCharCode(col.charCodeAt(0) + 1), parseInt(row) + 1], [String.fromCharCode(col.charCodeAt(0) - 1), parseInt(row) + 1], [String.fromCharCode(col.charCodeAt(0) + 1), parseInt(row) - 1], [String.fromCharCode(col.charCodeAt(0) - 1), parseInt(row) - 1]];
+        
+        pieces.map(p => p.canCapture = false)
+
+        for(let p of pieces) p.getValidMoves(pieces);
+        
+
+        if (!captured || (captured && !checkForMoreCaptures(piece))) {
+            switchTurn(); // Switch turn if no more captures available
+        }
+
+        playSound()
+    }
+
+    function checkForMoreCaptures(piece) {
+        const validMoves = piece.getValidMoves(pieces);
+        console.log(validMoves)
+        if (piece.canCapture ) {
+            highlightMoves(piece);
+            return true;
+        }
+        return false;
+    }
+
+    function checkForKingPromotion(piece) {
+        const lastRow = piece.color === 'white' ? '8' : '1';
+        if (piece.position.charAt(1) === lastRow && !piece.isKing) {
+            piece.isKing = true;
+            piece.symbol = piece.color === 'white' ? '♔' : '♚';
+            document.getElementById(piece.position).textContent = piece.symbol;
+        }
+    }
+
+    
+
+    function playSound() {
+        const audioContext = new AudioContext();
+        const oscillator = audioContext.createOscillator();
+        // Attack-Decay-Sustain-Release (ADSR) Envelope: 0, 0.03, 0.001 seconds
+        const gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.001);
+        gainNode.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 0.031);
+        oscillator.connect(gainNode);
+
+        gainNode.connect(audioContext.destination);
+
+        // freq 440 Hz, 0.1 seconds
+
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+        
+    }
+
+    /** INTERACTION **/
+
+    let selectedPiece = null;
+    let currentTurn; // Start with white's turn
+    const turnDisplay = document.getElementById('turn-display');
+
+function handleSquareClick(event) {
+        const clickedSquare = event.target;
+        const squareId = clickedSquare.id;
+
+        if (selectedPiece) {
+            const piece = pieces.find(p => p.position === squareId);
+            if (piece && piece.color === currentTurn) {
+                // Deselect the piece if it was clicked again
+                selectedPiece = null;
+                clearHighlights();
+            } else if (selectedPiece) {
+                const validMoves = ValidMoves(selectedPiece);
+
+                // Mandatory Capture Check
+                const mustCapturePieces = pieces.filter(p => p.color === currentTurn && p.canCapture);
+                console.log(mustCapturePieces )
+                if (mustCapturePieces.length > 0 && !mustCapturePieces.includes(selectedPiece) ) {
+                    return; // Prevent moving other pieces if a capture is mandatory
+                }
+
+                if (validMoves.includes(squareId)) {
+                    MovePiece(selectedPiece.position, squareId);
+                }
+                selectedPiece = null;
+                clearHighlights();
+            }
+        } else {
+            // If no piece is selected, try to select one of the current player's pieces.
+            const piece = pieces.find(p => p.position === squareId && p.color === currentTurn);
+            if (piece) {
+                selectedPiece = piece;
+                highlightMoves(selectedPiece);
+                clickedSquare.classList.add('selected');
+            }
+        }
+    }
+
+
+
+
+    function switchTurn() {
+        currentTurn = currentTurn === 'white' ? 'black' : 'white';
+        document.getElementById('turn-display').textContent = "Turn: " + currentTurn;
+    }
+
+    function checkWinCondition() {
+        // logic
+    }
+
+
+    function ValidMoves(piece){
+        const validMoves = piece.getValidMoves(pieces);
+        
+        return validMoves;
+        
+    }
+
+    function resetGame(){
+        pieces = [
+
+        ];
+        
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if ((row + col) % 2 === 1) {
+                    if (row < 3) {
+                        pieces.push(new CheckerPiece('black', String.fromCharCode(97 + col) + (8 - row), '⚫'));
+                    } else if (row > 4) {
+                        pieces.push(new CheckerPiece('white', String.fromCharCode(97 + col) + (8 - row), '⚪'));
+                    }
+                }
+            }
+        }
+        // add pawns
+
+        moveHistory = [];
+        document.getElementById('move-history').innerHTML = '';
+        currentTurn = 'white';
+        document.getElementById('turn-display').textContent = "Turn: " + currentTurn;
+        checkerboard.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+        const row = document.createElement('tr');
+        for (let j = 0; j < 8; j++) {
+            const square = document.createElement('td');
+            square.className = (i + j) % 2 === 0 ? 'square white' : 'square black';
+            square.id = String.fromCharCode(97 + j) + (8 - i);
+            row.appendChild(square);
+            square.innerHTML = pieces.find(piece => piece.position === square.id)?.symbol || '';
+                        square.addEventListener('click', handleSquareClick);
+
+        }
+        checkerboard.appendChild(row);
+    }
+    }
+
+
+
+    function highlightMoves(piece) {
+        const validMoves = ValidMoves(piece);
+
+         // Highlight mandatory captures in red
+        pieces.filter(p => p.color === currentTurn && p.canCapture).forEach(capturePiece => {
+
+            captureMoves = capturePiece.getValidMoves(pieces);
+            captureMoves.forEach(moveId => {
+                const square = document.getElementById(moveId);
+                if (square) {
+                    square.classList.add('capture-highlight'); // New class for red highlight
+                }
+            });
+        });
+        validMoves.forEach(moveId => {
+            const square = document.getElementById(moveId);
+            if (square) {
+                square.classList.add('highlight');
+            }
+        });
+    }
+
+    function clearHighlights() {
+        const highlightedSquares = document.querySelectorAll('.highlight, .capture-highlight');
+            highlightedSquares.forEach(square => {
+                square.classList.remove('highlight', 'capture-highlight');
+            });
+        const selectedSquares = document.querySelectorAll('.selected');
+        selectedSquares.forEach(square => {
+            square.classList.remove('selected');
+        });
+    }
+
+
+resetGame();
+</script>
+</body>
+</html>

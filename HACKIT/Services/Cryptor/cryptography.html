@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>CRYPTOGRAPHY</title>
+	<link rel="stylesheet" type="text/css" href="../../hackStyle/hack.css">
+	<link rel="stylesheet" type="text/css" href="main_style.css">
+	<script type="text/javascript" src="../../payloads/ENCRYPTO.js"></script>
+	<style type="text/css">
+		textarea{
+			overflow: scroll;
+			resize: vertical;
+			font-size: 25px;
+			width: 100%;
+			background-color: black;
+			color: rgb(0,255,0);
+			font-weight:bolder;
+			border: 0;	
+		}
+		h3{
+			text-align: center;
+			font-size: 3em;
+			text-decoration: unset;
+		}
+		h1{
+			font-size: 10vw;
+			color: #0f0;
+		}
+	</style>
+</head>
+<body>
+	<center>
+	<h1><span class="msg">Cryptography</span><span class='pointer'></span></h1>
+	</center>
+
+	<textarea maxlength="1000" placeholder="Type Here raw Data to transform to Encrypted data" id="encrypt" oninput="encrypt()"></textarea>
+	<div style="display: flex;flex-direction: row;">
+		<select onchange='updateTools();' id="cypher">
+			<option value='none'>Choose cypher</option> 
+			<option value='reverse'>Reverse</option>
+			<option value='atbash'>atbash</option>
+			<option value='caeser'>Caeser</option> 
+			<option value='transposition'>Transposition</option>
+			<option value='SHA1'>SHA-1</option>
+		</select>
+		<div id="tools"></div>
+	</div>
+
+	<textarea maxlength="1000" placeholder="Type Here Encrypted Data to transform to raw data" id="decrypt" oninput="decrypt()"></textarea>
+	<h3><a href="../../index.html">Home<br>↩</a></h3>
+	<script type="text/javascript" src="../../hackStyle/hack_style.js"></script>
+	<script type="text/javascript">
+		let cypher = document.getElementById('cypher')
+		let tools = document.getElementById('tools')
+		let numKey = document.createElement('input')
+		let encryptText = document.getElementById('encrypt')
+		let decryptText = document.getElementById('decrypt')
+		let lastUsed = 'encrypt'
+		let method = null
+		let hashes = ['SHA1', 'MD5'] 
+		numKey.type = 'number'
+		numKey.value = 0
+		numKey.min = 0
+		numKey.addEventListener('click',()=>{window[lastUsed]()})
+		updateTools = ()=>{
+			tools.innerHTML = ''
+			if(cypher.value == 'caeser' || cypher.value == 'transposition' ){
+				tools.appendChild(numKey)
+			}
+			if(cypher.value!='none'){
+
+				method = window[cypher.value] 
+
+				//using this window[variableName] we can get the value
+				// of this variable from its name string
+			}
+			window[lastUsed]()
+
+		}
+
+		encrypt= ()=>{
+			//Function.length returns number of parameters
+			lastUsed = 'encrypt'
+			if (method === null) {
+				decryptText.value = encryptText.value
+				return 0;
+
+			}
+			if (method.length == 2) {
+				let text = encryptText.value
+				let key = parseInt(numKey.value)
+				decryptText.value = method(text,key)
+				
+			}else{
+				decryptText.value = method(encryptText.value)
+
+			}
+		}
+		decrypt = ()=>{
+			lastUsed = 'decrypt'
+			if (method === null) {
+				encryptText.value = decryptText.value
+				return 0;
+
+			}
+			if (method.length == 2) {
+				let text = decryptText.value
+				let key = parseInt(numKey.value)
+				encryptText.value = method(text,key,false)
+				
+			}else{
+				if(hashes.indexOf(method.name) != -1 ){
+					encryptText.value = 'Hashes are not decryptable'
+				}else{
+				encryptText.value = method(decryptText.value,false)
+				}
+
+			}
+		}
+		
+	</script>
+</body>
+</html>

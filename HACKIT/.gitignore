@@ -1,0 +1,12 @@
+tools/is_leaked/
+study/
+Services/Ultimate OSINT/Extreme privacy by Michael Bazzell (z-lib.org).pdf
+Services/Ultimate OSINT/OSINT by Michael Bazzell (z-lib.org).pdf
+payloads/
+tools/
+
+*.zip
+*.csv
+*.zip
+*.db
+*.pdf

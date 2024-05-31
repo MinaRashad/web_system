@@ -1,0 +1,66 @@
+a{
+	text-decoration: unset;
+	color: unset;
+}
+
+.app{
+	/*display: flex;
+	flex-wrap: wrap;
+	*/
+	position: relative;
+	width: 100px;
+	height: 100px;
+	margin: 50px;
+	background-color: rgb(0,150,0);
+	font-size: 100px;
+	font-family: monospace;
+	overflow: hidden;
+	color: darkgreen;
+	transition: all ease 2s;
+
+}
+.innerApp{
+	position: relative;
+	bottom: 30px;
+
+}
+.app::first-letter{
+	color: black !important;
+	font-weight: bolder;
+	font-size: 150px;
+}
+
+.app:hover{
+	width: 100%;
+	height: 100%;
+	/*margin-left: 500px;*/
+	/*margin-right: 500px;*/
+	animation: brokenflash 0.5s infinite;
+	transition: all ease 2s;
+}
+
+#apps-container{
+	display: flex;
+	flex-wrap: wrap;
+	flex-direction: column;
+	text-align: center;
+}
+
+@keyframes brokenflash{
+	20% {
+		opacity: 1
+		width:;
+	}
+	40%{
+		opacity: 0.7
+	}
+	60%{
+		opacity: 1
+	}
+	80%{
+		opacity: 0.5
+	}
+	100%{
+		opacity: 1
+	}
+}

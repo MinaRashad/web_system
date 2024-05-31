@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>~/Requester</title>
+	<link rel="stylesheet" type="text/css" href="../../hackStyle/hack.css">
+	<link rel="stylesheet" type="text/css" href="../../main_style.css">
+	<style type="text/css">
+        input, button,textarea{
+            color:#000;
+        }
+        *{
+        	font-size: 1vw;
+        	font-family: monospace;
+            color: #00ff00;
+            text-decoration: none;
+        }
+        path{
+        	font-size: 6vw;
+        	font-weight: bolder;
+        }
+        a{
+        	display: inline-block;
+        	position: absolute;
+        	left: 0vw;
+        	top: 0vh;
+        	color:red;
+        	font-size: 2vw;
+
+        }
+        ::selection{
+        	background-color: #0f0;
+        	color: #000;
+        }
+		/******************************************/
+		select{
+			width: 3cm;
+			background-color: #09f;
+			color: #09f;
+		}
+		textarea{
+			width: 30vw;
+			height: 30vh;
+            resize: none;
+		}
+		#example{
+			color: grey;
+			background-color: white;
+			width: 10vw;
+			margin: 20px;
+			padding: 10px;
+		}
+		#terminal{
+			background-color: #222;
+			border:solid 10px #111;
+			width: 50vw;
+			height:60vh;
+			position: absolute;
+			top: 20vh;
+			right: 0;
+		}
+
+	</style>
+</head>
+<body>
+<center>
+    <path>HACKIT:~/requester#</path>
+</center>
+<br>
+<a href="../../index.html">Home↩</a>
+
+<form>
+	<table>
+		<thead>Enter Data Here</thead>
+		<tr>
+			<td>
+				<label>URL:</label>
+			</td>
+			<td>
+				<input type="text" id="url" placeholder="www.example.com">
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<label>Method:</label>
+			</td>
+			<td>
+				<input type="text" id='method' placeholder="e.g. GET">
+			</td>
+		</tr>
+	</table>
+	<label>Data:</label><br>
+	<textarea id="data" placeholder="Enter Data Here"></textarea><br>
+	<input type="button" value="send Request" onclick="start()">
+</form>
+<div id="terminal">
+		Make sure to Enter Data like this:<br>
+		<div id="example">
+			name1=value1<br>
+			name2=value2<br>
+			.<br>
+			.<br>
+			etc<br>
+
+		</div>
+</div>
+<script type="text/javascript" src="main.js"></script>
+
+</html>
