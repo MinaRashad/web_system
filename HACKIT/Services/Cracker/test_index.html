@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hacking Simulator</title>
+  <style>
+
+body {
+  background-color: #0f0f0f;
+  color: #0aff16;
+  font-family: "Courier New", monospace;
+  margin: 0;
+  padding: 0;
+}
+
+#container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+textarea {
+  background-color: #0f0f0f;
+  color: #0aff16;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  height: 200px;
+  margin: 10px;
+  padding: 10px;
+  border: 2px solid #0aff16;
+  border-radius: 5px;
+  width: 80%;
+}
+
+#real-time-stats {
+  color: #0aff16;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+#real-time-stats div {
+  margin-bottom: 5px;
+}
+
+button {
+  background-color: transparent;
+  border: 2px solid #0aff16;
+  color: #0aff16;
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  padding: 8px 15px;  
+  margin: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: #0aff16;
+  color: #0f0f0f;
+}
+
+h1, h3 {
+  color: #0aff16;
+}
+
+a {
+  color: #0aff16;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  text-decoration: none;
+  margin-top: 20px;
+}
+
+a:hover {
+  text-shadow: 0 0 10px #0aff16;
+}
+
+/* Optional: Add some animations for a cool effect */  
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+#blinkingCursor {
+  font-weight: bold;
+  color: #0aff16;
+  animation: blink 1s step-end infinite;
+}
+
+  </style>
+</head>
+<body>
+  <center>
+    <path><h1>~/Cracker#</h1></path>
+  </center>
+  <br>
+  <div id="container">
+    <textarea id="ciphertext" placeholder="Enter encrypted text here..."></textarea>
+    <textarea id="plaintext" readonly></textarea>
+    <div id="real-time-stats">
+      <h3>Real-Time Stats:</h3>
+      <div>Best Key: <span id="bestKey"></span></div>
+      <div>Tested Key: <span id="testedKey"></span></div>
+      <div>Tested Decrypted: <span id="testedDecrypted"></span></div>
+    </div>    
+    <button onclick="crackCipher()">Crack It!</button>
+  </div>
+  <a href="../../index.html">Home↩</a>  
+  <script>
+
+	// read csv file
+	const fileName = 'quadgram_frequencies.csv';
+
+	const quadgramFrequencies = {};
+
+	const readCSV = async () => {
+		const response = await fetch(fileName);
+		const data = await response.text();
+		const rows = data.split('\n').slice(1);
+		rows.forEach(row => {
+			const [quadgram, frequency,probability] = row.split(',');
+			quadgramFrequencies[quadgram] = parseFloat(frequency);
+		});
+	};
+
+	async function crackCipher() {
+		await readCSV();  // Ensure quadgram frequencies are loaded
+
+		const ciphertext = document.getElementById("ciphertext").value.toUpperCase();
+		let global_bestKey = generateRandomKey();     // Mapping: cipher letter -> plain letter
+		let global_bestScore = -Infinity;
+
+		// Initial guess (frequency analysis)
+		const frequencyCounts = getLetterFrequencies(ciphertext);
+
+		for(let i=0;i<100;i++)
+		{
+			// simulate annealing
+			let bestKey = global_bestKey
+			// take  random neighbor of random neighbor of ... 200 times
+			// allows us to explore more keyspace
+			for(let j=0;j<500;j++)
+			{
+				const neighbors = generateNeighborKeys(bestKey);
+				bestKey = neighbors[Math.floor(Math.random() * neighbors.length)];
+			}
+			// Hill Climbing Optimization
+			let score = -Infinity;
+			let improved = true;
+			while (improved) {
+				improved = false;
+				const neighbors = generateNeighborKeys(bestKey);
+
+				for (const neighbor of neighbors) {
+					const plaintext = applyKey(ciphertext, neighbor);
+					const neighborScore = calculateFitness(plaintext);
+
+					if (neighborScore > score) {
+						score = neighborScore;
+						bestKey = neighbor;
+						improved = true;
+
+						const testedDecrypted = applyKey(ciphertext, neighbor);  
+						updateRealTimeStats(global_bestKey, neighbor, testedDecrypted);
+
+
+						}
+					}
+			}
+
+			if (score > global_bestScore) {
+				global_bestScore = score;
+				global_bestKey = bestKey;
+				document.getElementById("plaintext").value = applyKey(ciphertext, bestKey);
+				i = 0
+			}
+
+			if(score == global_bestScore && JSON.stringify(bestKey) != JSON.stringify(global_bestKey))
+			{
+				i = 0
+			}
+
+			// wait for 0.01 seconds for page to render
+			await new Promise(r => setTimeout(r, 10));
+
+
+
+			
+		}
+
+		// Final result
+		const crackedText = applyKey(ciphertext, global_bestKey);
+		document.getElementById("plaintext").value = crackedText;
+	}
+
+	// --- Helper Functions ---
+
+	function getLetterFrequencies(text) {
+		const freq = {};
+		for (const char of text) {
+			if (/[A-Z]/.test(char)) {
+				freq[char] = (freq[char] || 0) + 1;
+			}
+		}
+		return freq;
+	}
+
+	function applyKey(text, key) {
+		return text.replace(/[A-Z]/g, char => key[char] || char); // Handle missing keys
+	}
+
+	function generateNeighborKeys(key) {
+		const keys = [];
+		const letters = Object.keys(key);
+		for (let i = 0; i < letters.length; i++) {
+			for (let j = i + 1; j < letters.length; j++) {
+				const neighbor = { ...key };
+				[neighbor[letters[i]], neighbor[letters[j]]] = [neighbor[letters[j]], neighbor[letters[i]]];
+				keys.push(neighbor);
+			}
+		}
+		return keys;
+	}
+
+	function generateRandomKey() {
+		const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		const shuffled = letters.split('').sort(() => Math.random() - 0.5);
+		const key = {};
+		for (let i = 0; i < letters.length; i++) {
+			key[letters[i]] = shuffled[i];
+		}
+		return key;
+	}
+
+	function calculateFitness(text) {
+		let score = 0;
+		text = text.replace(/[^A-Z]/g, '');
+		for (let i = 0; i < text.length - 3; i++) {
+			const quadgram = text.substring(i, i + 4);
+			score += quadgramFrequencies[quadgram] || 0; // Handle missing quadgrams
+		}
+		return score/ text.length;
+	}
+
+	// Update function to display real-time values
+	function updateRealTimeStats(bestKey, testedKey, testedDecrypted) {
+		best_key_arr = Object.values(bestKey);
+		tested_key_arr = Object.values(testedKey);
+		document.getElementById("bestKey").textContent = best_key_arr.join('');
+		document.getElementById("testedKey").textContent = tested_key_arr.join('');
+		document.getElementById("testedDecrypted").textContent = testedDecrypted;
+	}
+  </script>
+</body>
+</html>

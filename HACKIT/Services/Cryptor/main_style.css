@@ -48,8 +48,8 @@ a{
 
 @keyframes brokenflash{
 	20% {
-		opacity: 1
-		width:;
+		opacity: 1;
+		width:1;
 	}
 	40%{
 		opacity: 0.7
