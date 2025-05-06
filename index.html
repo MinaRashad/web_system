@@ -170,6 +170,61 @@
             margin-bottom: 10px;
             border: 1px solid #ccc;
         }
+
+    /* Folder styles */
+.folder-icon .icon-content::before { content: "📁"; }
+.folder-window {
+    display: none;
+    position: absolute;
+    background-color: rgba(40, 40, 40, 0.95);
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    min-width: 400px;
+    min-height: 300px;
+    resize: both;
+    overflow: auto;
+}
+
+.folder-header {
+    background-color: #333;
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    cursor: move;
+}
+
+.folder-title {
+    font-weight: bold;
+    margin-right: auto;
+}
+
+.folder-controls {
+    display: flex;
+}
+
+.folder-control {
+    margin-left: 10px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.folder-content {
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    height: calc(100% - 40px);
+}
+
+.folder-icon .file-icon {
+    position: relative;
+    margin: 5px;
+}
+
     
 
     
@@ -183,6 +238,7 @@
     [data-name="HACKIT"] .icon-content::before { content: "🔍"; } 
     [data-name="Journal"] .icon-content::before { content: "📓"; }  
     [data-name="clock"] .icon-content::before { content: "🕒"; }
+    [data-name="Ladder"] .icon-content::before { content: "🪜"; }
     </style>
     
     </head>
@@ -242,6 +298,10 @@
             <span class="icon-content"></span>
             <span class="file-name">Clock</span>
         </div>
+        <div class="file-icon" data-name="Ladder" data-link="ladder.html">
+            <span class="icon-content"></span>
+            <span class="file-name">Ladder</span>
+        </div>
 
         </div>
 
@@ -249,7 +309,7 @@
             <button onclick="location.reload()">Refresh</button>
             <button onclick="showAddAppPrompt()">Add App</button> 
             <button id="deleteAppButton" onclick="deleteApp(event)" style="display:none;">Delete</button>
-
+            <button onclick="showCreateFolderPrompt()">Create Folder</button>
         </div>
 
         <div class="prompt" id="addAppPrompt">
@@ -262,77 +322,95 @@
             <button onclick="addApp()">Add</button>
             <button onclick="hideAddAppPrompt()">Cancel</button>
         </div>
+
+
+<div class="prompt" id="createFolderPrompt">
+    <label for="folderName">Folder Name:</label>
+    <input type="text" id="folderName">
+    <button onclick="createFolder()">Create</button>
+    <button onclick="hideCreateFolderPrompt()">Cancel</button>
+</div>
+
+<!-- Template for folder windows -->
+<template id="folderWindowTemplate">
+    <div class="folder-window">
+        <div class="folder-header">
+            <div class="folder-title">Folder Name</div>
+            <div class="folder-controls">
+                <span class="folder-control folder-minimize">_</span>
+                <span class="folder-control folder-close">✕</span>
+            </div>
+        </div>
+        <div class="folder-content"></div>
+    </div>
+</template>
     
     <script>
         let targetedIcon;
-        loadApps(); // Load apps on page load
         const fileIcons = document.querySelectorAll('.file-icon');
         fileIcons.forEach(icon => {
-            const iconName = icon.dataset.name;
+            icon.style.display = 'none'
+        });
+        let directory_tree = JSON.parse(localStorage.getItem('directory_tree'));
 
-            // Load coordinates from local storage or set initial random positions
-            let storedPosition = JSON.parse(localStorage.getItem(iconName + '_position'));
-            if (storedPosition) {
-                icon.style.left = storedPosition.x + 'px';
-                icon.style.top = storedPosition.y + 'px';
-            } else {
-                let x = Math.floor(Math.random() * window.innerWidth);
-                let y = Math.floor(Math.random() * window.innerHeight * 0.5);
-                icon.style.left = x + 'px';
-                icon.style.top = y + 'px';
-                localStorage.setItem(iconName + '_position', JSON.stringify({ x, y }));
-            }
-            
-            let offsetX, offsetY;
-            let isDragging = false;
-
-            icon.addEventListener('mousedown', (event) => {
-                event.preventDefault(); // Prevent default text selection
-                offsetX = event.clientX - icon.getBoundingClientRect().left;
-                offsetY = event.clientY - icon.getBoundingClientRect().top;
-                isDragging = true;
-
-                fileIcons.forEach(otherIcon => otherIcon.style.zIndex = '');
-                icon.style.zIndex = 1;
-            });
-
-            document.addEventListener('mousemove', (event) => {
-                if (!isDragging) return;
-                icon.style.left = (event.clientX - offsetX) + 'px';
-                icon.style.top = (event.clientY - offsetY) + 'px';
-
-                // 2. Update local storage on drag
-                localStorage.setItem(iconName + "_position", JSON.stringify({ 
-                    x: event.clientX - offsetX, 
-                    y: event.clientY - offsetY 
-                }));
-
-            });
-
-            icon.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-
-            // Highlight on single click
-            icon.addEventListener('click', () => {
-                fileIcons.forEach(otherIcon => otherIcon.classList.remove('highlighted'));
-                icon.classList.add('highlighted');
-
-            });
-
-            // Follow link on double click
-            icon.addEventListener('dblclick', () => {
-                window.location.href = icon.dataset.link; // Use the 'data-link' attribute for the URL
-            });
-
-            // clicking anywere on the desktop will remove the highlight and dragging
-            document.querySelector('.desktop').addEventListener('click', (event) => {
-                // if event not icon
-                if (!icon.contains(event.target)) {
-                    icon.classList.remove('highlighted');
-                    isDragging = false;
+        if (!directory_tree) {
+            directory_tree = {
+                "Desktop": {
+                    "contents": [
+                        {"name": "Fun Stuff",
+                         "type": "folder",
+                         "position": [10, 10],
+                         "icon": "📁",
+                         "contents": []
+                        }
+                    ]
                 }
-            });            
+            };
+
+            fileIcons.forEach(icon => {
+                directory_tree["Desktop"]["contents"][0]["contents"].push({
+                    name: icon.dataset.name,
+                    link: icon.dataset.link,
+                    position: [
+                        Math.floor(Math.random() * window.innerWidth),
+                        Math.floor(Math.random() * window.innerHeight)
+                    ],
+                    icon: icon.querySelector('.icon-content').textContent,
+                    type: "file"
+                });
+            });
+
+            localStorage.setItem('directory_tree', JSON.stringify(directory_tree));
+        }
+
+        desktop_icons = directory_tree["Desktop"]["contents"];
+
+
+        desktop_icons.forEach(icon => {
+
+            // if the icon is a folder, we need to create the folder
+            if(icon.type === "folder"){
+                createFolderElement(icon)
+            }
+            else{
+                
+                // if its not in the default apps, we need to create it first
+                if(!document.querySelector(`.file-icon[data-name="${icon.name}"]`)){
+                    createAppIcon(icon);
+                }
+
+                const iconElement = document.querySelector(`.file-icon[data-name="${icon.name}"]`);
+                iconElement.style.display = 'block';
+
+                if (iconElement) {
+                    iconElement.style.left = icon.position[0] + 'px';
+                    iconElement.style.top = icon.position[1] + 'px';
+                }
+                
+                
+                // Enable dragging for the icon
+                enable_icon_features(iconElement, icon.type);     
+            }    
 
         });
 
@@ -466,21 +544,22 @@
             
             const newApp = { name, icon, link };
             
-            // Load existing apps or initialize an empty array
-            let apps = JSON.parse(localStorage.getItem('apps')) || [];
-            
-            // Add the new app
-            apps.push(newApp);
-            
-            // Store the updated apps
-            localStorage.setItem('apps', JSON.stringify(apps));
-            
-            location.reload()
-            // Create the icon element and append to the desktop
-            createAppIcon(newApp);
-            
-            document.getElementById('addAppPrompt').style.display = 'none';
+            // Save the app to local storage
 
+            directory_tree["Desktop"]["contents"].push({
+                name: newApp.name,
+                link: newApp.link,
+                position: [
+                    Math.floor(Math.random() * window.innerWidth),
+                    Math.floor(Math.random() * window.innerHeight)
+                ],
+                icon: newApp.icon,
+                type: "file"
+            });
+
+            setTree();
+
+            // reload
             location.reload();
         }
 
@@ -510,11 +589,295 @@
             
         }
 
-        // Load and create icons on page load
-        function loadApps() {
-            const apps = JSON.parse(localStorage.getItem('apps')) || [];
-            apps.forEach(createAppIcon);
-        };
+        function getApp(dir, name){
+            path = dir.split('/').filter(Boolean);
+            let current = directory_tree;
+            for (let i = 0; i < path.length; i++) {
+                current = current[path[i]];
+            }
+
+            if (current && current[name]) {
+                return current[name];
+            } else {
+                return null;
+            } 
+        }
+
+        function setTree(){
+            // save current tree
+            localStorage.setItem('directory_tree', JSON.stringify(directory_tree));
+        }
+
+        function showCreateFolderPrompt() {
+            document.getElementById('createFolderPrompt').style.display = 'block';
+        }
+
+        function hideCreateFolderPrompt() {
+            document.getElementById('createFolderPrompt').style.display = 'none';
+        }
+
+        function createFolder() {
+            hideCreateFolderPrompt();
+            const folderName = document.getElementById('folderName').value;
+            const folderIcon = document.createElement('div');
+            folderIcon.classList.add('file-icon', 'folder-icon');
+            folderIcon.dataset.name = folderName;
+
+            // add to the directory tree
+            directory_tree["Desktop"]["contents"].push({
+                name: folderName,
+                link: "",
+                position: [
+                    Math.floor(Math.random() * window.innerWidth),
+                    Math.floor(Math.random() * window.innerHeight)
+                ],
+                icon: "📁",
+                type: "folder",
+                contents: []
+            });
+        
+        setTree();
+        // Create the folder icon
+        const iconSpan = document.createElement('span');
+        iconSpan.classList.add('icon-content');
+        // iconSpan.textContent = "📁"; // Folder icon
+        folderIcon.appendChild(iconSpan);
+        const nameSpan = document.createElement('span');
+        nameSpan.classList.add('file-name');
+        nameSpan.textContent = folderName;
+        folderIcon.appendChild(nameSpan);
+        // Add the folder icon to the desktop
+        document.querySelector('.desktop').appendChild(folderIcon);
+
+        // Set the folder icon's position
+        position = directory_tree["Desktop"]["contents"].filter(item => item.name === folderName)[0].position;
+        folderIcon.style.left = position[0] + 'px';
+        folderIcon.style.top = position[1] + 'px';
+        // Enable dragging for the folder icon
+        enable_icon_features(folderIcon, "folder");
+
+    }
+
+        function createFolderElement(data){
+            const name = data.name;
+            const icon = data.icon;
+            const folderIcon = document.createElement('div');
+            folderIcon.classList.add('file-icon', 'folder-icon');
+            folderIcon.dataset.name = name;
+            folderIcon.dataset.link = data.link;
+            folderIcon.style.left = data.position[0] + 'px';
+            folderIcon.style.top = data.position[1] + 'px';
+            // Create a span to hold the icon content (so we can target it with CSS)
+            const iconSpan = document.createElement('span');
+            iconSpan.classList.add('icon-content');
+            folderIcon.appendChild(iconSpan);
+            const nameSpan = document.createElement('span');
+            nameSpan.classList.add('file-name');
+            nameSpan.textContent = name;
+            folderIcon.appendChild(nameSpan);
+            // Add the folder icon to the desktop
+            document.querySelector('.desktop').appendChild(folderIcon);
+            
+            // Enable dragging for the folder icon
+            enable_icon_features(folderIcon, "folder");
+
+
+        }
+
+    function enable_icon_features(element, type){
+        let offsetX, offsetY;
+        let isDragging = false;
+
+        element.addEventListener('mousedown', (event) => {
+            event.preventDefault(); // Prevent default text selection
+            offsetX = event.clientX - element.getBoundingClientRect().left;
+            offsetY = event.clientY - element.getBoundingClientRect().top;
+            isDragging = true;
+
+            fileIcons.forEach(otherIcon => otherIcon.style.zIndex = '');
+            element.style.zIndex = 1;
+
+            // remove highlight from all icons
+            highlighted = document.querySelectorAll('.file-icon.highlighted');
+            highlighted.forEach(icon => {
+                icon.classList.remove('highlighted');
+            });
+            element.classList.add('highlighted');
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
+            element.style.left = (event.clientX - offsetX) + 'px';
+            element.style.top = (event.clientY - offsetY) + 'px';
+
+            // Save the new position to local storage
+            directory_tree['Desktop']['contents'] = directory_tree['Desktop']['contents'].map(item => {
+                if (item.name === element.dataset.name) {
+                    item.position = [
+                        event.clientX - offsetX,
+                        event.clientY - offsetY
+                    ];
+                }
+                return item;
+            });
+            setTree();
+
+        });
+
+        element.addEventListener('mouseup', () => {
+            isDragging = false;
+
+            // if the element is an icon and the mouse is released on a folder
+            // we need to move the icon to the folder
+            // check tree
+            if(type == 'file'){
+                let folder;
+
+                folder = directory_tree['Desktop']['contents'].filter(function(item){
+                    if(item.type === "folder" &&
+                        event.clientX > item.position[0] && event.clientX < item.position[0] + 100 &&
+                        event.clientY > item.position[1] && event.clientY < item.position[1] + 100){
+                            return true;
+                    }
+                })
+                
+            
+            folder = folder[0];
+            if(folder){
+                // move the icon to the folder
+                folder.contents.push({
+                    name: element.dataset.name,
+                    link: element.dataset.link,
+                    position: [
+                        Math.floor(Math.random() * window.innerWidth),
+                        Math.floor(Math.random() * window.innerHeight)
+                    ],
+                    icon: element.querySelector('.icon-content').textContent,
+                    type: "file"
+                });
+                // remove the icon from the desktop
+                directory_tree['Desktop']['contents'] = directory_tree['Desktop']['contents'].filter(item => item.name !== element.dataset.name);
+                setTree();
+                element.remove();
+            }
+            }
+            
+        });
+
+        
+        // Follow link on double click or open window
+        element.addEventListener('dblclick', () => {
+            if(type === "folder"){
+                
+                open_folder(element.dataset.name);
+
+            }
+            else{
+                // follow link
+                console.log("hello")
+                window.href = element.dataset.link; // Use the 'data-link' attribute for the URL
+            }
+        });
+
+    }
+
+    function open_folder(dir){
+        console.log("Opening folder: " + dir);
+        // open folder window
+        const folderWindowTemplate = document.getElementById('folderWindowTemplate');
+        let  folderWindow = folderWindowTemplate.content.cloneNode(true);
+        const folderTitle = folderWindow.querySelector('.folder-title');
+        const folderHeader = folderWindow.querySelector('.folder-header');
+        const folderContent = folderWindow.querySelector('.folder-content');
+
+        // Set the title of the folder window
+        folderTitle.textContent = dir;
+        folderWindow = folderWindow.querySelector('.folder-window');
+        folderWindow.style.display = 'block';
+        folderWindow.style.left = '100px';
+        folderWindow.style.top = '100px';
+        folderWindow.style.zIndex = 100;
+        folderWindow.dataset.name = dir;
+        
+
+        // Append the folder window to the body
+        document.body.appendChild(folderWindow);
+
+        // Add event listeners for dragging the window
+        let offsetX, offsetY;
+        let isDragging = false;
+
+        
+        folderHeader.addEventListener('mousedown', (event) => {
+            event.preventDefault(); // Prevent default text selection
+            offsetX = event.clientX - folderWindow.getBoundingClientRect().left;
+            offsetY = event.clientY - folderWindow.getBoundingClientRect().top;
+            isDragging = true;
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
+            folderWindow.style.left = (event.clientX - offsetX) + 'px';
+            folderWindow.style.top = (event.clientY - offsetY) + 'px';
+        });
+
+        folderHeader.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Close button
+        const closeButton = folderWindow.querySelector('.folder-close');
+        closeButton.addEventListener('click', () => {
+            folderWindow.remove();
+        });
+
+        // Minimize button
+        const minimizeButton = folderWindow.querySelector('.folder-minimize');
+        minimizeButton.addEventListener('click', () => {
+            folderWindow.style.display = 'none';
+        });
+
+        // Add the contents of the folder
+        const folderContents = directory_tree["Desktop"]["contents"].filter(item => item.name === dir)[0].contents;
+
+        // add them like a grid
+        for(let i = 0; i < folderContents.length; i++){
+            const icon = document.createElement('div');
+            icon.classList.add('file-icon');
+            icon.dataset.name = folderContents[i].name;
+            icon.dataset.link = folderContents[i].link;
+            
+            // Create a span to hold the icon content (so we can target it with CSS)
+            const iconSpan = document.createElement('span');
+            iconSpan.classList.add('icon-content'); 
+            iconSpan.textContent = folderContents[i].icon; // Directly set the icon content as text
+            icon.appendChild(iconSpan); 
+
+            const nameSpan = document.createElement('span');
+            nameSpan.classList.add('file-name');
+            nameSpan.textContent = folderContents[i].name;
+            icon.appendChild(nameSpan);
+
+            // Set the position to be dependent on i
+            icon.style.left = (i % 4) * 100 + 'px';
+            icon.style.top = Math.floor(i / 4) * 100 + 50 + 'px';
+
+            // Add the icon to the folder window
+            folderContent.appendChild(icon);
+
+            // double click
+            icon.addEventListener('dblclick', () => {
+                if(folderContents[i].type === "folder"){
+                    open_folder(folderContents[i].name);
+                }
+                else{
+                    window.location.href = folderContents[i].link;
+                }
+            });
+
+            
+        }
+    }
     </script>
 </body>
 </html>
