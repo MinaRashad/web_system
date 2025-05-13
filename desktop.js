@@ -120,6 +120,7 @@ if (!directory_tree) {
         { name: "Knowledge Cards", link: "KnowledgeCards.html", icon: "🧠" },
         { name: "Piano", link: "piano.html", icon: "🎹" },
         { name: "Chess", link: "chess.html", icon: "♟" },
+        { name:"Checkers", link: "checkers.html", icon: "🔲" },
         { name: "Solar System", link: "solarSystem.html", icon: "🪐" },
         { name: "Hearing Test", link: "hearing_test.html", icon: "👂" },
         { name: "Gardening Game", link: "gardening_game.html", icon: "🌱" },
