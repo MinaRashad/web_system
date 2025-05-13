@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Einstein Ladder Simulation</title>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "p5": "https://cdn.jsdelivr.net/npm/p5@1.0.0/+esm"
+            }
+        }
+    </script>
+</head>
+<body>
+    <script type="module">
+        import  p5 from 'p5';
+
+        // Constants
+        const lightSpeed = 5; // arbitrary units
+        let frameOfReference = 'barn';
+        let ladderLength = 1.5*300; // length of 1.5
+        let barnLength = 1*300; // length of 1
+        let lengthContractionFactor = 0.5; // contraction by a factor of 0.5
+
+        // the length contraction factor  = sqrt(1 - (v^2/c^2))
+        // so factor = sqrt(1 - (v^2/c^2))
+        // => v^2/c^2 = 1 - factor^2
+        // => v^2 = c^2 * (1 - factor^2)
+        // => v = c * sqrt(1 - factor^2)
+
+        let ladderSpeed = lightSpeed * Math.sqrt(1 - Math.pow(lengthContractionFactor, 2));
+        let lasersFired = false;
+        let laserFired_frame = 0;
+        let frontGateOpen = true;
+        let backGateOpen = false;
+
+        const sketch = (p) => {
+            p.setup = () => {
+                p.createCanvas(p.windowWidth*0.95, p.windowHeight*0.95);
+                p.frameRate(30);
+                p.rectMode(p.CENTER);
+            };
+
+            p.draw = () => {
+                p.background(220);
+
+                if (frameOfReference === 'barn') {
+                    drawBarnFrame(p);
+                } else {
+                    drawLadderFrame(p);
+                }
+
+                drawControls(p);
+            };
+
+            p.mousePressed = () => {
+                console.log("Mouse pressed at: " + p.mouseX + ", " + p.mouseY);
+                if (p.mouseX < p.width && p.mouseY > p.height - 50) {
+                    frameOfReference = frameOfReference === 'barn' ? 'ladder' : 'barn';
+                    console.log("Changing frame of reference to: " + frameOfReference);
+                }
+            };
+
+            // if we resize the window, we need to reset the canvas
+            p.windowResized = () => {
+                p.resizeCanvas(p.windowWidth*0.95, p.windowHeight*0.95);
+                p.frameCount = 0;
+            };
+        };
+
+        function drawBarnFrame(p) {
+            let barnX = p.width / 2;
+            let barnY = p.height / 2;
+            let ladderX = (ladderSpeed * p.frameCount);
+            let ladderY = p.height / 2;
+
+
+            p.fill(255);
+            p.rect(barnX, barnY, barnLength, 20);
+
+            p.fill(128);
+            p.rect(ladderX, ladderY, ladderLength * lengthContractionFactor, 10);
+
+            // if the front of the ladder is in the middle of the barn, fire lazers
+            if (!lasersFired && ladderX + ladderLength * lengthContractionFactor / 2 > barnX) {
+                lasersFired = true;
+                laserFired_frame = p.frameCount;
+            }
+
+            if (lasersFired) {
+                drawLasers(p, barnX, barnY, ladderX, ladderY, barnLength);
+            }
+
+            // if ladder goes out of frame, reset
+            if (ladderX > p.width) {
+                reset(p);
+            }
+
+            // visualize the gates
+            drawGates(p, barnX, barnY, frontGateOpen, backGateOpen, barnLength);
+        }
+
+        // same logic as barn frame, but the ladder is the frame of reference
+        function drawLadderFrame(p) {
+            let barnX = p.width - (ladderSpeed * p.frameCount);
+            let barnY = p.height / 2;
+            let ladderX = p.width / 2;
+            let ladderY = p.height / 2;
+            // the barn is moving when the ladder is the frame of reference
+            let barnLength = ladderLength * lengthContractionFactor; 
+
+            p.fill(255);
+            p.rect(barnX, barnY, barnLength, 20);
+
+            p.fill(128);
+            p.rect(ladderX, ladderY, ladderLength, 10);
+
+            if (!lasersFired && barnX < ladderX + ladderLength / 2) {
+                lasersFired = true;
+                laserFired_frame = p.frameCount;
+            }
+
+            if (lasersFired) {
+                drawLasers(p, barnX, barnY, ladderX, ladderY, barnLength);
+            }
+
+            if (barnX < 0) {
+                reset(p);
+            }
+            drawGates(p, barnX, barnY, frontGateOpen, backGateOpen, barnLength);
+        }
+
+        function drawLasers(p, barnX, barnY, ladderX, ladderY, barnLength) {
+            // draw lasers as two points moving from middle of the barn to the gates
+            let laserY = barnY - 10;
+            let laserX1, laserX2;
+
+            // calculate the laser positions based on the frame of reference
+            // the reference of frame does not change its position,
+            // which is the starting point of the laser
+
+            if (frameOfReference === 'barn') {
+                laserX1 = barnX;
+                laserX2 = barnX;
+            } else {
+                laserX1 = ladderX + ladderLength/2;
+                laserX2 = ladderX + ladderLength/2;
+            }
+
+            // the invariant speed of light
+            // regardless of frame of reference, the speed of light is constant
+            // we will use the invariant speed of light as the basis for simulation
+            // and thus, we wont need to do lorentz transformation because we
+            // are simulating light directly
+
+            laserX1 += (p.frameCount - laserFired_frame) * lightSpeed;
+            laserX2 -= (p.frameCount - laserFired_frame) * lightSpeed;
+
+            if (laserX1 >= barnX + barnLength / 2) {
+                backGateOpen = true;
+            }
+            if (laserX2 <= barnX - barnLength / 2) {
+                frontGateOpen = false;
+            }
+
+            p.fill(255, 0, 0);
+            p.ellipse(laserX1, laserY, 10, 10);
+            p.ellipse(laserX2, laserY, 10, 10);
+
+            
+
+
+
+        }
+
+        function drawGates(p, barnX, barnY, frontGateOpen, backGateOpen, barnLength) {
+            p.fill(0, 255, 0);
+            if (frontGateOpen) {
+                p.rect(barnX - barnLength / 2, barnY, 10, 20);
+            }
+            if (backGateOpen) {
+                p.rect(barnX + barnLength / 2, barnY, 10, 20);
+            }
+        }
+
+        function drawControls(p) {
+            p.fill(128);
+            p.rect(p.width / 2, p.height - 25, p.width, 50);
+            p.fill(255);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text('Switch to ' + (frameOfReference === 'barn' ? 'Ladder' : 'Barn') + ' Frame', p.width / 2, p.height - 25);
+        }
+
+        function reset(p) {
+            lasersFired = false;
+            laserFired_frame = 0;
+            frontGateOpen = true;
+            backGateOpen = false;
+            p.frameCount = 0;
+        }
+
+
+        new p5(sketch);
+    </script>
+</body>
+</html>

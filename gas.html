@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Diffusion Simulation</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "p5": "https://cdn.jsdelivr.net/npm/p5@1.0.0/+esm"
+            }
+        }
+    </script>
+</head>
+<body>
+    <script type="module">
+        import p5 from 'p5';
+
+        // constants
+        let numParticles = 200;
+        let membraneX;
+        let boxWidth, boxHeight;
+        let maxSpeed = 5;
+        let particle_radius = 7;
+        let gridCellSize = particle_radius * 2; // this ensures the particle collisions are efficient
+        
+        // global variables
+        let grid = [];
+        let particles = [];
+
+        function setup() {
+            createCanvas(windowWidth * 0.95, windowHeight * 0.95);
+            background(0);
+            boxWidth = width;
+            boxHeight = height;
+            membraneX = width / 2;
+
+            // creating particles
+            for (let i = 0; i < numParticles; i++) {
+                let x = random(width / 2);
+                let y = random(height);
+                let vx = random(-maxSpeed, maxSpeed);
+                let vy = random(-maxSpeed, maxSpeed);
+                particles.push(new Particle(x, y, vx, vy, 'red'));
+
+                x = random(width / 2, width);
+                y = random(height);
+                vx = random(-maxSpeed, maxSpeed);
+                vy = random(-maxSpeed, maxSpeed);
+                particles.push(new Particle(x, y, vx, vy, 'blue'));
+            }
+        }
+
+        function draw() {
+            background(0);
+            drawMembrane();
+            drawBox();
+            
+            // the grid is used to track particle collisions efficiently
+            // using spatial hashing
+            grid = makeGrid();
+            for (let particle of particles) {
+                particle.update();
+                particle.display();
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth * 0.95, windowHeight * 0.95);
+            boxWidth = width;
+            boxHeight = height;
+            membraneX = width / 2;
+
+            reset();
+        }
+
+        // reset the particles
+        function reset() {
+            particles = [];
+            for (let i = 0; i < numParticles; i++) {
+                let x = random(width / 2);
+                let y = random(height);
+                let vx = random(-maxSpeed, maxSpeed);
+                let vy = random(-maxSpeed, maxSpeed);
+                particles.push(new Particle(x, y, vx, vy, 'red'));
+
+                x = random(width / 2, width);
+                y = random(height);
+                vx = random(-maxSpeed, maxSpeed);
+                vy = random(-maxSpeed, maxSpeed);
+                particles.push(new Particle(x, y, vx, vy, 'blue'));
+            }
+        }
+
+        function drawMembrane() {
+            stroke(128);
+            line(membraneX, 0, membraneX, height);
+        }
+
+        function drawBox() {
+            noFill();
+            stroke(0);
+            rect(0, 0, boxWidth, boxHeight);
+        }
+
+        // make a grid to track particle collisions
+        function makeGrid() {
+            let grid = [];
+            let cols = Math.floor(width / particle_radius);
+            let rows = Math.floor(height / particle_radius);
+
+            for (let i = 0; i < cols; i++) {
+                grid[i] = [];
+                for (let j = 0; j < rows; j++) {
+                    grid[i][j] = [];
+                }
+            }
+
+            // add particles to the grid
+            for (let particle of particles) {
+                let col = Math.floor(particle.x / particle_radius);
+                let row = Math.floor(particle.y / particle_radius);
+
+                if (col < 0) col = 0;
+                if (col >= grid.length) col = grid.length - 1;
+                if (row < 0) row = 0;
+                if (row >= grid[0].length) row = grid[0].length - 1;
+
+                grid[col][row].push({ particle: particle, "seen": false });
+            }
+
+            return grid;
+        }
+
+        // Particle class
+
+        class Particle {
+            constructor(x, y, vx, vy, c) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.c = c;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // check for collisions with the walls
+                if (this.x < 0 || this.x > width) {
+                    this.vx *= -1;
+                }
+                if (this.y < 0 || this.y > height) {
+                    this.vy *= -1;
+                }
+
+                // check for collisions with the membrane
+                if (Math.abs(this.x - membraneX) < 1) {
+                    if (random(1) < 0.9) {
+                        this.vx *= -1;
+                    }
+                }
+
+                // check for collisions with other particles
+                let col = Math.floor(this.x / particle_radius);
+                let row = Math.floor(this.y / particle_radius);
+
+                if (col < 0) col = 0;
+                if (col >= grid.length) col = grid.length - 1;
+                if (row < 0) row = 0;
+                if (row >= grid[0].length) row = grid[0].length - 1;
+
+                // check particles in the same grid cell
+                for (let other of grid[col][row]) {
+                    if (other.seen) {
+                        continue;
+                    }
+                    if (other.particle !== this) {
+                        other.seen = true;
+                        
+                        let d = dist(this.x, this.y, other.particle.x, other.particle.y);
+                        if (d < particle_radius * 2.1) {
+                            
+                            // ideal gas collision assuming equal mass
+                            
+                            // calculate difference in velocity
+                            let dvx = this.vx - other.particle.vx;
+                            let dvy = this.vy - other.particle.vy;
+
+                            // calculate the normal vector
+                            let dx = this.x - other.particle.x;
+                            let dy = this.y - other.particle.y;
+                            let dist_sq = d ** 2;
+                            
+                            // find projection of the velocity vector onto the normal vector
+                            let dot = this.vx * dx + this.vy * dy;
+                            let projection = dot / dist_sq;
+                            let proj_vx = projection * dx;
+                            let proj_vy = projection * dy;
+                            let perp_vx = this.vx - proj_vx;
+                            let perp_vy = this.vy - proj_vy;
+
+                            // reverse the velocity in the direction of the normal
+                            this.vx = -proj_vx + perp_vx;
+                            this.vy = -proj_vy + perp_vy;
+
+                            // same calculation for the other particle except, the normal is in the opposite direction
+                            dot = other.particle.vx * dx + other.particle.vy * dy;
+                            projection = dot / dist_sq;
+                            proj_vx = projection * dx;
+                            proj_vy = projection * dy;
+                            perp_vx = other.particle.vx + proj_vx;
+                            perp_vy = other.particle.vy + proj_vy;
+
+                            other.particle.vx = -proj_vx + perp_vx;
+                            other.particle.vy = -proj_vy + perp_vy; 
+                        }
+                    }
+                }
+            }
+
+            display() {
+                fill(this.c);
+                noStroke();
+                ellipse(this.x, this.y, particle_radius * 2, particle_radius * 2);
+            }
+        }
+
+        // export the functions to be used in p5.js
+        globalThis.setup = setup;
+        globalThis.draw = draw;
+        globalThis.windowResized = windowResized;
+
+    </script>
+</body>
+</html>

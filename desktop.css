@@ -1,0 +1,169 @@
+/* desktop.css */
+body {
+    background-color: #202020;
+    font-family: monospace;
+    color: #f0f0f0;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* Status Bar - unchanged as requested */
+.status-bar {
+    background-color: black;
+    color: white;
+    padding: 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 999;
+}
+
+.time {
+    font-size: 14px;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.battery {
+    display: flex;
+    align-items: center;
+}
+
+.battery-text {
+    margin-right: 5px;
+}
+
+.battery-level {
+    width: 50px;
+    height: 20px;
+    background-color: #333;
+    border-radius: 5px;
+    position: relative;
+}
+
+.battery-progress {
+    background-color: #007bff;
+    width: 75%;
+    height: 100%;
+}
+
+/* Canvas Desktop */
+#desktopCanvas {
+    display: block;
+    width: 100vw;
+    height: calc(100vh - 30px); /* Account for status bar */
+    background: linear-gradient(135deg, #2980b9, #6dd5fa, #ffffff);
+}
+
+/* Context Menu */
+.context-menu {
+    display: none;
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    z-index: 1000;
+}
+
+.context-menu button {
+    background-color: transparent;
+    border: none;
+    padding: 8px 16px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+.context-menu button:hover {
+    background-color: #f0f0f0;
+}
+
+/* Prompt */
+.prompt {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    border: 1px solid #111111;
+    padding: 20px;
+    z-index: 1001;
+    color: #202020;
+    padding: 3em;
+    font-size: large;
+}
+
+.prompt label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.prompt input,
+.prompt select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+}
+
+/* Folder Window */
+.folder-window {
+    display: none;
+    position: absolute;
+    background-color: rgba(40, 40, 40, 0.95);
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    min-width: 400px;
+    min-height: 300px;
+    resize: both;
+    overflow: auto;
+}
+
+.folder-header {
+    background-color: #333;
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    cursor: move;
+}
+
+.folder-title {
+    font-weight: bold;
+    margin-right: auto;
+}
+
+.folder-controls {
+    display: flex;
+}
+
+.folder-control {
+    margin-left: 10px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.folder-content {
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    height: calc(100% - 40px);
+}
+
+.fullscreen-icon {
+    cursor: pointer;
+    font-size: 20px;
+    padding: 5px;
+    height: 100%;
+}
+
+.fullscreen-icon:hover {
+    color: white;
+    background-color: #2e3339;
+}
