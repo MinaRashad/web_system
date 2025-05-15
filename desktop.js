@@ -6,6 +6,7 @@ const canvas = document.getElementById('desktopCanvas');
 const ctx = canvas.getContext('2d');
 let targetedIcon = null;
 let highlightedIcon = null;
+let current_context = null;
 let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
@@ -227,6 +228,14 @@ function getMousePos(canvas, evt) {
     };
 }
 
+// handle when mouse leaves the canvas
+canvas.addEventListener('mouseleave', () => {
+    // Clear previous highlight
+    desktopIcons.forEach(icon => {
+        icon.highlighted = false;
+    });
+    isDragging = false;
+})
 canvas.addEventListener('mousedown', (e) => {
     const pos = getMousePos(canvas, e);
     
@@ -257,7 +266,7 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (isDragging && targetedIcon) {
+    if (isDragging && targetedIcon && targetedIcon.position) {
         const pos = getMousePos(canvas, e);
         targetedIcon.position[0] = pos.x - dragOffsetX;
         targetedIcon.position[1] = pos.y - dragOffsetY;
@@ -289,19 +298,23 @@ canvas.addEventListener('mouseup', (e) => {
     isDragging = false;
 });
 
-// Context menu
 const contextMenu = document.getElementById('contextMenu');
+let clipboardItem = null; // For cut/paste functionality
 
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const pos = getMousePos(canvas, e);
     
+    current_context = directory_tree["Desktop"];
+
     // Check if right-clicked on an icon
     let clickedOnIcon = false;
     for (let i = desktopIcons.length - 1; i >= 0; i--) {
         if (desktopIcons[i].isPointInside(pos.x, pos.y)) {
             targetedIcon = desktopIcons[i];
             clickedOnIcon = true;
+            
+            // set current_context to desktop
             break;
         }
     }
@@ -319,8 +332,55 @@ canvas.addEventListener('contextmenu', (e) => {
         let apps = JSON.parse(localStorage.getItem('apps')) || [];
         let app = apps.filter(app => app.name === targetedIcon.name)[0];
         deleteButton.disabled = !app;
+        
+        // Show cut button
+        document.getElementById('cutButton').style.display = 'block';
     } else {
         deleteButton.style.display = 'none';
+        document.getElementById('cutButton').style.display = 'none';
+    }
+    
+    // Show/hide paste button based on clipboard content
+    document.getElementById('pasteButton').style.display = clipboardItem ? 'block' : 'none';
+});
+
+// Add event listener for context menu in folder windows
+document.addEventListener('contextmenu', (e) => {
+    // Check if right-click happened inside a folder window
+    const folderWindow = e.target.closest('.folder-window');
+    if (folderWindow) {
+        e.preventDefault();
+        
+        // Check if clicked on a file icon
+        const fileIcon = e.target.closest('.file-icon');
+        if (fileIcon) {
+            console.log("Clicked on file icon:", fileIcon);
+            targetedIcon = {
+                name: fileIcon.dataset.name,
+                link: fileIcon.dataset.link,
+                folderName: folderWindow.dataset.name,
+                icon: fileIcon.dataset.icon,
+                type: fileIcon.dataset.type || "file"
+            };
+            document.getElementById('cutButton').style.display = 'block';
+            document.getElementById('deleteAppButton').style.display = 'block';
+        } else {
+            document.getElementById('cutButton').style.display = 'none';
+            document.getElementById('deleteAppButton').style.display = 'none';
+        }
+        
+        // Show context menu
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = e.clientX + 'px';
+        contextMenu.style.top = e.clientY + 'px';
+
+        // if inside a folder, set current_context to folder contents
+        current_context = directory_tree["Desktop"]["contents"].find(
+            item => item.name === folderWindow.dataset.name
+        );
+        
+        // Show/hide paste button based on clipboard content
+        document.getElementById('pasteButton').style.display = clipboardItem ? 'block' : 'none';
     }
 });
 
@@ -333,13 +393,226 @@ function hideContextMenu() {
     document.getElementById('contextMenu').style.display = 'none';
 }
 
+// Cut function
+function cutItem() {
+    if (targetedIcon) {
+        console.log("Cutting item:", targetedIcon.name);
+        clipboardItem = {
+            name: targetedIcon.name,
+            link: targetedIcon.link,
+            icon: targetedIcon.icon || "📄",
+            type: targetedIcon.type || "file",
+            sourceFolder: targetedIcon.folderName || "Desktop"
+        };
+        
+        hideContextMenu();
+    }
+}
+
+// Paste function
+function pasteItem(e) {
+    if (!clipboardItem) return;
+
+    // Check if the target is a folder
+    if (current_context.type && current_context.type == "folder" && 
+        clipboardItem.type == "folder"
+    ) {
+        // we need to check if the we are pasting a directory into itself
+        // find the first common parent of source and target
+        // if the first common parent is the target, we need to stop
+        if(current_context.name == clipboardItem.name) {
+            alert("You cannot paste a folder into itself.");
+            return;
+        }
+        console.log("Moving folder:", current_context.name, clipboardItem.sourceFolder);
+
+    }
+    // if moving a folder, get the contents
+    contents = []
+    if(clipboardItem.type == "folder") {
+        contents = directory_tree["Desktop"]["contents"].find(
+            item => item.name === clipboardItem.name
+        ).contents;
+    }
+    clipboardItem.contents = contents;
+    console.log(contents)
+    
+    if(clipboardItem.type == "folder") {
+        if(current_context.type == "folder") current_context.contents = current_context.contents || [];
+        current_context.contents.push({
+            name: clipboardItem.name,
+            link: "",
+            icon: clipboardItem.icon,
+            type: "folder",
+            position: [
+                e.clientX - 40, // Center the icon
+                e.clientY - 50
+            ],
+            contents: clipboardItem.contents
+        });
+        console.log(current_context)
+    }
+    else{
+    current_context.contents.push({
+        name: clipboardItem.name,
+        link: clipboardItem.link,
+        icon: clipboardItem.icon,
+        type: clipboardItem.type || "file",
+        position: [
+            e.clientX - 40, // Center the icon
+            e.clientY - 50
+        ]
+    });
+}
+
+
+    // Remove from source folder if cut
+    if (clipboardItem.sourceFolder) {
+        const sourceFolder = directory_tree["Desktop"]["contents"].find(
+            item => item.name === clipboardItem.sourceFolder
+        );
+        if (sourceFolder) {
+            sourceFolder.contents = sourceFolder.contents.filter(
+                item => item.name !== clipboardItem.name
+            );
+        }
+    }
+    // Remove from desktop if cut
+    if (clipboardItem.sourceFolder === "Desktop") {
+        directory_tree["Desktop"]["contents"] = directory_tree["Desktop"]["contents"].filter(
+            item => item.name !== clipboardItem.name
+        );
+    }
+    
+
+    // Update local storage
+    setTree();
+
+    loadDesktopIcons();
+    drawDesktop();
+    // refresh folder window contents
+    refreshFolderWindow(current_context.name);
+    refreshFolderWindow(clipboardItem.sourceFolder);
+    
+
+    // Clear clipboard
+    clipboardItem = null;
+    hideContextMenu();
+}
+
+// Refresh folder window contents
+function refreshFolderWindow(folderName) {
+    const folderWindow = document.querySelector(`.folder-window[data-name="${folderName}"]`);
+    if (folderWindow) {
+        const folderContent = folderWindow.querySelector('.folder-content');
+        folderContent.innerHTML = '';
+        
+        const folderData = directory_tree["Desktop"]["contents"].find(item => item.name === folderName);
+        if (folderData && folderData.contents) {
+            folderData.contents.forEach((item, index) => {
+                const icon = document.createElement('div');
+                icon.classList.add('file-icon');
+                icon.dataset.name = item.name;
+                icon.dataset.link = item.link;
+                icon.dataset.icon = item.icon;
+                icon.dataset.type = item.type || "file";
+                
+                const iconSpan = document.createElement('span');
+                iconSpan.classList.add('icon-content');
+                iconSpan.textContent = item.icon;
+                icon.appendChild(iconSpan);
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.classList.add('file-name');
+                nameSpan.textContent = item.name;
+                icon.appendChild(nameSpan);
+                
+                // Add the icon to the folder window
+                folderContent.appendChild(icon);
+                
+                // Double click event
+                icon.addEventListener('dblclick', () => {
+                    if (item.type === "folder") {
+                        openFolder(item.name);
+                    } else {
+                        openAppInWindow(item.name, item.link, item.icon);
+                    }
+                });
+            });
+        }
+    }
+}
+
 // Handle double click on icon
 function handleDoubleClick(icon) {
     if (icon.type === "folder") {
         openFolder(icon.name);
     } else {
-        window.location.href = icon.link;
+        openAppInWindow(icon.name, icon.link, icon.icon);
     }
+}
+
+// Open app in window instead of redirecting
+function openAppInWindow(appName, appLink, appIcon) {
+    // Create app window from template
+    const folderWindowTemplate = document.getElementById('folderWindowTemplate');
+    let appWindow = folderWindowTemplate.content.cloneNode(true);
+    const appTitle = appWindow.querySelector('.folder-title');
+    const appHeader = appWindow.querySelector('.folder-header');
+    const appContent = appWindow.querySelector('.folder-content');
+    
+    // Set the title of the app window
+    appTitle.textContent = appName;
+    appWindow = appWindow.querySelector('.folder-window');
+    appWindow.style.display = 'block';
+    appWindow.style.left = '100px';
+    appWindow.style.top = '100px';
+    appWindow.style.zIndex = 100;
+    appWindow.style.width = '400px';
+    appWindow.style.height = '300px';
+    appWindow.dataset.name = appName;
+    appWindow.classList.add('app-window');
+    
+    // Create iframe for app content
+    const iframe = document.createElement('iframe');
+    iframe.src = appLink;
+    appContent.appendChild(iframe);
+    
+    // Append the app window to the body
+    document.body.appendChild(appWindow);
+    
+    // Add event listeners for dragging the window
+    let offsetX, offsetY;
+    let isDraggingWindow = false;
+    
+    appHeader.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        offsetX = event.clientX - appWindow.getBoundingClientRect().left;
+        offsetY = event.clientY - appWindow.getBoundingClientRect().top;
+        isDraggingWindow = true;
+    });
+    
+    document.addEventListener('mousemove', (event) => {
+        if (!isDraggingWindow) return;
+        appWindow.style.left = (event.clientX - offsetX) + 'px';
+        appWindow.style.top = (event.clientY - offsetY) + 'px';
+    });
+    
+    appHeader.addEventListener('mouseup', () => {
+        isDraggingWindow = false;
+    });
+    
+    // Close button
+    const closeButton = appWindow.querySelector('.folder-close');
+    closeButton.addEventListener('click', () => {
+        appWindow.remove();
+    });
+    
+    // Minimize button
+    const minimizeButton = appWindow.querySelector('.folder-minimize');
+    minimizeButton.addEventListener('click', () => {
+        appWindow.style.display = 'none';
+    });
 }
 
 // Update icon position in directory tree
@@ -377,6 +650,7 @@ function moveIconToFolder(icon, folder) {
         
         // Update local storage and reload icons
         setTree();
+        refreshFolderWindow(folder.name);
         loadDesktopIcons();
     }
 }
@@ -421,7 +695,7 @@ function addApp() {
     const link = document.getElementById('appLink').value;
     
     if (name) {
-        directory_tree["Desktop"]["contents"].push({
+        current_context["contents"].push({
             name: name,
             link: link,
             position: [
@@ -434,6 +708,7 @@ function addApp() {
         
         setTree();
         loadDesktopIcons();
+        refreshFolderWindow(current_context.name);
         hideAddAppPrompt();
     }
 }
@@ -450,7 +725,7 @@ function createFolder() {
     const folderName = document.getElementById('folderName').value;
     
     if (folderName) {
-        directory_tree["Desktop"]["contents"].push({
+        current_context["contents"].push({
             name: folderName,
             link: "",
             position: [
@@ -464,6 +739,7 @@ function createFolder() {
         
         setTree();
         loadDesktopIcons();
+        refreshFolderWindow(current_context.name);
         hideCreateFolderPrompt();
     }
 }
@@ -484,6 +760,10 @@ function openFolder(folderName) {
     folderWindow.style.top = '100px';
     folderWindow.style.zIndex = 100;
     folderWindow.dataset.name = folderName;
+    folderWindow.dataset.path = '';
+
+    // find the path of the folder
+
     
     // Append the folder window to the body
     document.body.appendChild(folderWindow);
@@ -529,6 +809,8 @@ function openFolder(folderName) {
             icon.classList.add('file-icon');
             icon.dataset.name = item.name;
             icon.dataset.link = item.link;
+            icon.dataset.icon = item.icon;
+            icon.dataset.type = item.type || "file";
             
             const iconSpan = document.createElement('span');
             iconSpan.classList.add('icon-content');
@@ -552,7 +834,7 @@ function openFolder(folderName) {
                 if (item.type === "folder") {
                     openFolder(item.name);
                 } else {
-                    window.location.href = item.link;
+                    openAppInWindow(item.name, item.link, item.icon);
                 }
             });
         });
