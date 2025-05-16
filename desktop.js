@@ -1,6 +1,5 @@
 // desktop.js
 // Canvas-based desktop implementation
-
 // Canvas setup
 const canvas = document.getElementById('desktopCanvas');
 const ctx = canvas.getContext('2d');
@@ -104,17 +103,25 @@ let directory_tree = JSON.parse(localStorage.getItem('directory_tree'));
 if (!directory_tree) {
     directory_tree = {
         "Desktop": {
-            "contents": [
-                {
-                    "name": "Fun Stuff",
-                    "type": "folder",
-                    "position": [10, 10],
-                    "icon": "📁",
-                    "contents": []
-                }
+            ".meta_data": {
+                "path": "/Desktop",
+                "type": "folder"
+            }
+        }
+    };
+
+    // Create Fun Stuff folder
+    directory_tree["Desktop"]["Fun Stuff"] = {
+        ".meta_data": {
+            "path": "/Desktop/Fun Stuff",
+            "type": "folder",
+            "position":[
+                Math.floor(100),
+                Math.floor(120)
             ]
         }
     };
+    console.log(directory_tree)
 
     // Default icons
     const defaultIcons = [
@@ -132,36 +139,88 @@ if (!directory_tree) {
     ];
 
     defaultIcons.forEach(icon => {
-        directory_tree["Desktop"]["contents"][0]["contents"].push({
-            name: icon.name,
-            link: icon.link,
-            position: [
-                Math.floor(Math.random() * (canvas.width - 100)),
-                Math.floor(Math.random() * (canvas.height - 120))
-            ],
-            icon: icon.icon,
-            type: "file"
-        });
+        directory_tree["Desktop"]["Fun Stuff"][icon.name] = {
+            ".meta_data": {
+                "path": `/Desktop/Fun Stuff/${icon.name}`,
+                "type": "file",
+                "link": icon.link,
+                "icon": icon.icon,
+                "position": [
+                    Math.floor(Math.random() * (canvas.width - 100)),
+                    Math.floor(Math.random() * (canvas.height - 120))
+                ]
+            }
+        };
     });
 
     localStorage.setItem('directory_tree', JSON.stringify(directory_tree));
 }
 
 // Load desktop icons from directory tree
+// Load desktop icons from directory tree
 function loadDesktopIcons() {
     desktopIcons = [];
-    const desktop_contents = directory_tree["Desktop"]["contents"];
     
-    desktop_contents.forEach(item => {
-        desktopIcons.push(new DesktopIcon(
-            item.name,
-            item.link,
-            item.position,
-            item.icon,
-            item.type,
-            item.contents
-        ));
+    // Get all items in Desktop folder
+    Object.keys(directory_tree["Desktop"]).forEach(key => {
+        if (key === ".meta_data") return; // Skip metadata
+        
+        const item = directory_tree["Desktop"][key];
+        const metadata = item[".meta_data"];
+        
+        if (metadata) {
+            desktopIcons.push(new DesktopIcon(
+                key,
+                metadata.type === "file" ? metadata.link : "",
+                metadata.position || [
+                    Math.floor(Math.random() * (canvas.width - 100)),
+                    Math.floor(Math.random() * (canvas.height - 120))
+                ],
+                metadata.icon || (metadata.type === "folder" ? "📁" : "📄"),
+                metadata.type
+            ));
+        }
     });
+}
+
+function getObjectByPath(path) {
+    const parts = path.split('/').filter(part => part);
+    let current = directory_tree;
+    
+    for (const part of parts) {
+        if (current[part]) {
+            current = current[part];
+        } else {
+            return null;
+        }
+    }
+    
+    return current;
+}
+
+// Helper function to get parent folder by path
+function getParentByPath(path) {
+    const parts = path.split('/').filter(part => part);
+    parts.pop(); // Remove the last part (file/folder name)
+    
+    if (parts.length === 0) return null; // No parent
+    
+    let current = directory_tree;
+    for (const part of parts) {
+        if (current[part]) {
+            current = current[part];
+        } else {
+            return null;
+        }
+    }
+    
+    return current;
+}
+
+// Helper function to get name from path
+function getNameFromPath(path) {
+    const parts = path.split('/').filter(part => part);
+    return parts[parts.length - 1];
 }
 
 // Draw all desktop icons
@@ -374,10 +433,8 @@ document.addEventListener('contextmenu', (e) => {
         contextMenu.style.left = e.clientX + 'px';
         contextMenu.style.top = e.clientY + 'px';
 
-        // if inside a folder, set current_context to folder contents
-        current_context = directory_tree["Desktop"]["contents"].find(
-            item => item.name === folderWindow.dataset.name
-        );
+        // get the path of the window
+        current_context = getObjectByPath(folderWindow.dataset.path);
         
         // Show/hide paste button based on clipboard content
         document.getElementById('pasteButton').style.display = clipboardItem ? 'block' : 'none';
@@ -396,14 +453,17 @@ function hideContextMenu() {
 // Cut function
 function cutItem() {
     if (targetedIcon) {
-        console.log("Cutting item:", targetedIcon.name);
+       
+        // Get the item
+        const item = current_context[targetedIcon.name];
+        if (!item) return;
+        
         clipboardItem = {
             name: targetedIcon.name,
-            link: targetedIcon.link,
-            icon: targetedIcon.icon || "📄",
-            type: targetedIcon.type || "file",
-            sourceFolder: targetedIcon.folderName || "Desktop"
+            path: item[".meta_data"].path,
         };
+
+        console.log(clipboardItem)
         
         hideContextMenu();
     }
@@ -412,141 +472,153 @@ function cutItem() {
 // Paste function
 function pasteItem(e) {
     if (!clipboardItem) return;
-
-    // Check if the target is a folder
-    if (current_context.type && current_context.type == "folder" && 
-        clipboardItem.type == "folder"
-    ) {
-        // we need to check if the we are pasting a directory into itself
-        // find the first common parent of source and target
-        // if the first common parent is the target, we need to stop
-        if(current_context.name == clipboardItem.name) {
-            alert("You cannot paste a folder into itself.");
-            return;
-        }
-        console.log("Moving folder:", current_context.name, clipboardItem.sourceFolder);
-
-    }
-    // if moving a folder, get the contents
-    contents = []
-    if(clipboardItem.type == "folder") {
-        contents = directory_tree["Desktop"]["contents"].find(
-            item => item.name === clipboardItem.name
-        ).contents;
-    }
-    clipboardItem.contents = contents;
-    console.log(contents)
     
-    if(clipboardItem.type == "folder") {
-        if(current_context.type == "folder") current_context.contents = current_context.contents || [];
-        current_context.contents.push({
-            name: clipboardItem.name,
-            link: "",
-            icon: clipboardItem.icon,
-            type: "folder",
-            position: [
-                e.clientX - 40, // Center the icon
-                e.clientY - 50
-            ],
-            contents: clipboardItem.contents
-        });
-        console.log(current_context)
-    }
-    else{
-    current_context.contents.push({
-        name: clipboardItem.name,
-        link: clipboardItem.link,
-        icon: clipboardItem.icon,
-        type: clipboardItem.type || "file",
-        position: [
-            e.clientX - 40, // Center the icon
-            e.clientY - 50
-        ]
-    });
-}
-
-
-    // Remove from source folder if cut
-    if (clipboardItem.sourceFolder) {
-        const sourceFolder = directory_tree["Desktop"]["contents"].find(
-            item => item.name === clipboardItem.sourceFolder
-        );
-        if (sourceFolder) {
-            sourceFolder.contents = sourceFolder.contents.filter(
-                item => item.name !== clipboardItem.name
-            );
-        }
-    }
-    // Remove from desktop if cut
-    if (clipboardItem.sourceFolder === "Desktop") {
-        directory_tree["Desktop"]["contents"] = directory_tree["Desktop"]["contents"].filter(
-            item => item.name !== clipboardItem.name
-        );
+    // Determine target folder path
+    let targetPath = current_context[".meta_data"].path;
+    
+    // Get source item
+    const sourceItem = getObjectByPath(clipboardItem.path);
+    if (!sourceItem) return;
+    
+    // Get target folder
+    const targetFolder = getObjectByPath(targetPath);
+    if (!targetFolder) return;
+    
+    // Check if target is a subfolder of source (prevent recursive paste)
+    if (sourceItem[".meta_data"].type === "folder" && 
+        targetPath.startsWith(clipboardItem.path)) {
+        showError("Cannot paste a folder into itself or its subfolders.");
+        return;
     }
     
+    // Check if item with same name already exists in target
+    if (targetFolder[clipboardItem.name]) {
+        showError(`A file or folder named "${clipboardItem.name}" already exists at the destination.`);
+        return;
+    }
+    
+    const sourceParent = getParentByPath(clipboardItem.path);
 
+    // Copy the item to target
+    targetFolder[clipboardItem.name] = JSON.parse(JSON.stringify(sourceItem));
+    
+    // Update path in metadata
+    targetFolder[clipboardItem.name][".meta_data"].path = `${targetPath}/${clipboardItem.name}`;
+    
+    // If it's a folder, update paths of all children recursively
+    if (sourceItem[".meta_data"].type === "folder") {
+        updateChildPaths(targetFolder[clipboardItem.name], `${targetPath}/${clipboardItem.name}`);
+    }
+    
+    // Remove from source folder
+    if (sourceParent) {
+        const sourceName = getNameFromPath(clipboardItem.path);
+        delete sourceParent[sourceName];
+    }
+
+    // if we are pasting on the desktop, set position to moust position
+    if (targetPath === "/Desktop") {
+        const pos = getMousePos(canvas, e);
+        targetFolder[clipboardItem.name][".meta_data"].position = [
+            pos.x - 40,
+            pos.y - 50
+        ];
+    }
+    
     // Update local storage
     setTree();
-
-    loadDesktopIcons();
-    drawDesktop();
-    // refresh folder window contents
-    refreshFolderWindow(current_context.name);
-    refreshFolderWindow(clipboardItem.sourceFolder);
     
-
+    // Refresh UI
+    loadDesktopIcons();
+    refreshFolderWindow(targetPath);
+    refreshFolderWindow(sourceParent[".meta_data"].path);
+    
     // Clear clipboard
     clipboardItem = null;
     hideContextMenu();
 }
 
-// Refresh folder window contents
-function refreshFolderWindow(folderName) {
-    const folderWindow = document.querySelector(`.folder-window[data-name="${folderName}"]`);
-    if (folderWindow) {
-        const folderContent = folderWindow.querySelector('.folder-content');
-        folderContent.innerHTML = '';
+// Helper function to update paths recursively
+function updateChildPaths(folder, parentPath) {
+    Object.keys(folder).forEach(key => {
+        if (key === ".meta_data") return;
         
-        const folderData = directory_tree["Desktop"]["contents"].find(item => item.name === folderName);
-        if (folderData && folderData.contents) {
-            folderData.contents.forEach((item, index) => {
-                const icon = document.createElement('div');
-                icon.classList.add('file-icon');
-                icon.dataset.name = item.name;
-                icon.dataset.link = item.link;
-                icon.dataset.icon = item.icon;
-                icon.dataset.type = item.type || "file";
-                
-                const iconSpan = document.createElement('span');
-                iconSpan.classList.add('icon-content');
-                iconSpan.textContent = item.icon;
-                icon.appendChild(iconSpan);
-                
-                const nameSpan = document.createElement('span');
-                nameSpan.classList.add('file-name');
-                nameSpan.textContent = item.name;
-                icon.appendChild(nameSpan);
-                
-                // Add the icon to the folder window
-                folderContent.appendChild(icon);
-                
-                // Double click event
-                icon.addEventListener('dblclick', () => {
-                    if (item.type === "folder") {
-                        openFolder(item.name);
-                    } else {
-                        openAppInWindow(item.name, item.link, item.icon);
-                    }
-                });
-            });
+        const item = folder[key];
+        if (item[".meta_data"]) {
+            item[".meta_data"].path = `${parentPath}/${key}`;
+            
+            // If it's a folder, update its children too
+            if (item[".meta_data"].type === "folder") {
+                updateChildPaths(item, `${parentPath}/${key}`);
+            }
         }
-    }
+    });
 }
 
-// Handle double click on icon
+// Refresh folder window contents
+function refreshFolderWindow(folderPath) {
+    console.log(folderPath)
+    const folderWindow = document.querySelector(`.folder-window[data-path="${folderPath}"]`);
+    if (!folderWindow) return;
+
+    const folder = getObjectByPath(folderPath);
+    if (!folder) return;
+    
+    const folderContent = folderWindow.querySelector('.folder-content');
+    folderContent.innerHTML = '';
+    
+    // Update path bar
+    const pathBar = folderWindow.querySelector('.folder-path-bar');
+    if (pathBar) {
+        pathBar.textContent = folderPath;
+    }
+    
+    // Add the contents of the folder
+    Object.keys(folder).forEach((key, index) => {
+        if (key === ".meta_data") return; // Skip metadata
+        
+        const item = folder[key];
+        if (!item || !item[".meta_data"]) return;
+        
+        const metadata = item[".meta_data"];
+        
+        const icon = document.createElement('div');
+        icon.classList.add('file-icon');
+        icon.dataset.name = key;
+        icon.dataset.path = metadata.path;
+        icon.dataset.link = metadata.type === "file" ? metadata.link : "";
+        icon.dataset.icon = metadata.icon || (metadata.type === "folder" ? "📁" : "📄");
+        icon.dataset.type = metadata.type;
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.classList.add('icon-content');
+        iconSpan.textContent = metadata.icon || (metadata.type === "folder" ? "📁" : "📄");
+        icon.appendChild(iconSpan);
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.classList.add('file-name');
+        nameSpan.textContent = key;
+        icon.appendChild(nameSpan);
+        
+        // Add the icon to the folder window
+        folderContent.appendChild(icon);
+        
+        // Double click event
+        icon.addEventListener('dblclick', () => {
+            if (metadata.type === "folder") {
+                openFolder(key, icon.dataset.path);
+            } else {
+                openAppInWindow(key, metadata.link, metadata.icon);
+            }
+        });
+    });
+}
+
+// Handle double click on icon in desktop
 function handleDoubleClick(icon) {
     if (icon.type === "folder") {
-        openFolder(icon.name);
+        path = "/Desktop/" + icon.name;
+        openFolder(icon.name, path);
     } else {
         openAppInWindow(icon.name, icon.link, icon.icon);
     }
@@ -617,63 +689,113 @@ function openAppInWindow(appName, appLink, appIcon) {
 
 // Update icon position in directory tree
 function updateIconPosition(icon) {
-    directory_tree["Desktop"]["contents"] = directory_tree["Desktop"]["contents"].map(item => {
-        if (item.name === icon.name) {
-            item.position = icon.position;
-        }
-        return item;
-    });
+    // Find the icon in the directory tree
+    const desktopFolder = directory_tree["Desktop"];
     
-    setTree();
+    if (desktopFolder[icon.name] && desktopFolder[icon.name][".meta_data"]) {
+        desktopFolder[icon.name][".meta_data"].position = icon.position;
+        setTree();
+    }
 }
 
 // Move icon to folder
 function moveIconToFolder(icon, folder) {
-    // Add to folder contents
-    const folderData = directory_tree["Desktop"]["contents"].find(item => item.name === folder.name);
-    if (folderData) {
-        folderData.contents.push({
-            name: icon.name,
-            link: icon.link,
-            position: [
-                Math.floor(Math.random() * (canvas.width - 100)),
-                Math.floor(Math.random() * (canvas.height - 120))
-            ],
-            icon: icon.icon,
-            type: "file"
-        });
-        
-        // Remove from desktop
-        directory_tree["Desktop"]["contents"] = directory_tree["Desktop"]["contents"].filter(
-            item => item.name !== icon.name
-        );
-        
-        // Update local storage and reload icons
-        setTree();
-        refreshFolderWindow(folder.name);
-        loadDesktopIcons();
+    // Get source and destination folders
+    const sourceFolder = directory_tree["Desktop"];
+    const destPath = `/Desktop/${folder.name}`;
+    const destFolder = getObjectByPath(destPath);
+    
+    if (!sourceFolder[icon.name] || !destFolder) return;
+    
+    // Check if a file/folder with the same name already exists in the destination
+    if (destFolder[icon.name]) {
+        showError(`A file or folder named "${icon.name}" already exists in "${folder.name}".`);
+        return;
     }
+    
+    // Move the item
+    destFolder[icon.name] = sourceFolder[icon.name];
+    
+    // Update the path in metadata
+    destFolder[icon.name][".meta_data"].path = `${destPath}/${icon.name}`;
+    
+    // Remove from source folder
+    delete sourceFolder[icon.name];
+    
+    // Update local storage and reload icons
+    setTree();
+    refreshFolderWindow(destPath);
+    loadDesktopIcons();
+}
+
+// Custom error display
+function showError(message) {
+    // Create error window
+    const errorWindow = document.createElement('div');
+    errorWindow.className = 'error-window';
+    errorWindow.style.position = 'absolute';
+    errorWindow.style.top = '50%';
+    errorWindow.style.left = '50%';
+    errorWindow.style.transform = 'translate(-50%, -50%)';
+    errorWindow.style.backgroundColor = '#ff4444';
+    errorWindow.style.color = 'white';
+    errorWindow.style.padding = '20px';
+    errorWindow.style.borderRadius = '5px';
+    errorWindow.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    errorWindow.style.zIndex = '2000';
+    
+    // Add error message
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = message;
+    errorWindow.appendChild(messageDiv);
+    
+    // Add close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'OK';
+    closeButton.style.marginTop = '15px';
+    closeButton.style.padding = '5px 15px';
+    closeButton.style.backgroundColor = 'white';
+    closeButton.style.color = 'black';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '3px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => errorWindow.remove();
+    errorWindow.appendChild(closeButton);
+    
+    // Add to body
+    document.body.appendChild(errorWindow);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(errorWindow)) {
+            errorWindow.remove();
+        }
+    }, 5000);
 }
 
 // Delete app
 function deleteApp() {
     if (targetedIcon) {
-        let apps = JSON.parse(localStorage.getItem('apps')) || [];
-        let app = apps.filter(app => app.name === targetedIcon.name)[0];
+        let path;
+        if (targetedIcon.folderName) {
+            path = `/Desktop/${targetedIcon.folderName}/${targetedIcon.name}`;
+        } else {
+            path = `/Desktop/${targetedIcon.name}`;
+        }
         
-        if (app) {
-            // Remove from local storage
-            apps = apps.filter(app => app.name !== targetedIcon.name);
-            localStorage.setItem('apps', JSON.stringify(apps));
-            
-            // Remove from directory tree
-            directory_tree["Desktop"]["contents"] = directory_tree["Desktop"]["contents"].filter(
-                item => item.name !== targetedIcon.name
-            );
+        // Get parent folder
+        const parent = getParentByPath(path);
+        if (parent) {
+            const name = getNameFromPath(path);
+            delete parent[name];
             
             // Update local storage and reload icons
             setTree();
             loadDesktopIcons();
+            
+            if (targetedIcon.folderName) {
+                refreshFolderWindow(targetedIcon.folderName);
+            }
         }
     }
     
@@ -694,23 +816,48 @@ function addApp() {
     const icon = document.getElementById('appIcon').value;
     const link = document.getElementById('appLink').value;
     
-    if (name) {
-        current_context["contents"].push({
-            name: name,
-            link: link,
-            position: [
-                Math.floor(Math.random() * (canvas.width - 100)),
-                Math.floor(Math.random() * (canvas.height - 120))
-            ],
-            icon: icon || "📄",
-            type: "file"
-        });
-        
-        setTree();
-        loadDesktopIcons();
-        refreshFolderWindow(current_context.name);
-        hideAddAppPrompt();
+    if (!name) return;
+    
+    // Get current folder path
+    let currentPath;
+    if (current_context[".meta_data"]) {
+        currentPath = current_context[".meta_data"].path;
+    } else {
+        currentPath = "/Desktop";
     }
+    
+    // Check if file/folder with same name already exists
+    if (current_context[name]) {
+        showError(`A file or folder named "${name}" already exists.`);
+        return;
+    }
+    
+    pos = getMousePos(canvas, event);
+
+    // Add the new app
+    current_context[name] = {
+        ".meta_data": {
+            "path": `${currentPath}/${name}`,
+            "type": "file",
+            "link": link,
+            "icon": icon || "📄",
+            "position": [
+                Math.floor(pos.x),
+                Math.floor(pos.y)
+            ]
+        }
+    };
+    
+    
+    setTree();
+    loadDesktopIcons();
+    
+    // Refresh folder window if in a folder
+    if (currentPath !== "/Desktop") {
+        refreshFolderWindow(currentPath);
+    }
+    
+    hideAddAppPrompt();
 }
 
 function showCreateFolderPrompt() {
@@ -724,28 +871,51 @@ function hideCreateFolderPrompt() {
 function createFolder() {
     const folderName = document.getElementById('folderName').value;
     
-    if (folderName) {
-        current_context["contents"].push({
-            name: folderName,
-            link: "",
-            position: [
-                Math.floor(Math.random() * (canvas.width - 100)),
-                Math.floor(Math.random() * (canvas.height - 120))
-            ],
-            icon: "📁",
-            type: "folder",
-            contents: []
-        });
-        
-        setTree();
-        loadDesktopIcons();
-        refreshFolderWindow(current_context.name);
-        hideCreateFolderPrompt();
+    if (!folderName) return;
+    
+    // Get current folder path
+    let currentPath = current_context['.meta_data'].path;
+    
+    // Check if file/folder with same name already exists
+    if (current_context[folderName]) {
+        showError(`A file or folder named "${folderName}" already exists.`);
+        return;
     }
+
+    pos = getMousePos(canvas, event);
+    
+    // Add the new folder
+    current_context[folderName] = {
+        ".meta_data": {
+            "path": `${currentPath}/${folderName}`,
+            "type": "folder",
+            "icon": "📁",
+            "position": [
+                Math.floor(pos.x),
+                Math.floor(pos.y)
+            ]
+        }
+    };
+    
+    setTree();
+    loadDesktopIcons();
+    
+    // Refresh folder window if in a folder
+    if (currentPath !== "/Desktop") {
+        refreshFolderWindow(currentPath);
+    }
+    
+    hideCreateFolderPrompt();
 }
 
 // Open folder window
-function openFolder(folderName) {
+function openFolder(folderName, folderPath) {
+    // Find the folder path
+    
+    const folder = getObjectByPath(folderPath);
+    
+    if (!folder) return;
+    
     const folderWindowTemplate = document.getElementById('folderWindowTemplate');
     let folderWindow = folderWindowTemplate.content.cloneNode(true);
     const folderTitle = folderWindow.querySelector('.folder-title');
@@ -760,10 +930,17 @@ function openFolder(folderName) {
     folderWindow.style.top = '100px';
     folderWindow.style.zIndex = 100;
     folderWindow.dataset.name = folderName;
-    folderWindow.dataset.path = '';
-
-    // find the path of the folder
-
+    folderWindow.dataset.path = folderPath;
+    
+    // Add path bar
+    const pathBar = document.createElement('div');
+    pathBar.className = 'folder-path-bar';
+    pathBar.style.padding = '5px 10px';
+    pathBar.style.backgroundColor = '#444';
+    pathBar.style.borderBottom = '1px solid #555';
+    pathBar.style.fontSize = '12px';
+    pathBar.textContent = folderPath;
+    folderWindow.insertBefore(pathBar, folderContent);
     
     // Append the folder window to the body
     document.body.appendChild(folderWindow);
@@ -802,43 +979,44 @@ function openFolder(folderName) {
     });
     
     // Add the contents of the folder
-    const folderData = directory_tree["Desktop"]["contents"].find(item => item.name === folderName);
-    if (folderData && folderData.contents) {
-        folderData.contents.forEach((item, index) => {
-            const icon = document.createElement('div');
-            icon.classList.add('file-icon');
-            icon.dataset.name = item.name;
-            icon.dataset.link = item.link;
-            icon.dataset.icon = item.icon;
-            icon.dataset.type = item.type || "file";
-            
-            const iconSpan = document.createElement('span');
-            iconSpan.classList.add('icon-content');
-            iconSpan.textContent = item.icon;
-            icon.appendChild(iconSpan);
-            
-            const nameSpan = document.createElement('span');
-            nameSpan.classList.add('file-name');
-            nameSpan.textContent = item.name;
-            icon.appendChild(nameSpan);
-            
-            // Set the position to be dependent on index
-            icon.style.left = (index % 4) * 100 + 'px';
-            icon.style.top = Math.floor(index / 4) * 100 + 50 + 'px';
-            
-            // Add the icon to the folder window
-            folderContent.appendChild(icon);
-            
-            // Double click event
-            icon.addEventListener('dblclick', () => {
-                if (item.type === "folder") {
-                    openFolder(item.name);
-                } else {
-                    openAppInWindow(item.name, item.link, item.icon);
-                }
-            });
+    Object.keys(folder).forEach((key, index) => {
+        if (key === ".meta_data") return; // Skip metadata
+        
+        const item = folder[key];
+        if (!item || !item[".meta_data"]) return;
+        
+        const metadata = item[".meta_data"];
+        
+        const icon = document.createElement('div');
+        icon.classList.add('file-icon');
+        icon.dataset.name = key;
+        icon.dataset.path = metadata.path;
+        icon.dataset.link = metadata.type === "file" ? metadata.link : "";
+        icon.dataset.icon = metadata.icon || (metadata.type === "folder" ? "📁" : "📄");
+        icon.dataset.type = metadata.type;
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.classList.add('icon-content');
+        iconSpan.textContent = metadata.icon || (metadata.type === "folder" ? "📁" : "📄");
+        icon.appendChild(iconSpan);
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.classList.add('file-name');
+        nameSpan.textContent = key;
+        icon.appendChild(nameSpan);
+        
+        // Add the icon to the folder window
+        folderContent.appendChild(icon);
+        
+        // Double click event
+        icon.addEventListener('dblclick', () => {
+            if (metadata.type === "folder") {
+                openFolder( key , metadata.path);
+            } else {
+                openAppInWindow(key, metadata.link, metadata.icon);
+            }
         });
-    }
+    });
 }
 
 // Save directory tree to local storage

@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Panel Simulation</title>
+</head>
+<body>
+    <script type="importmap">
+        {
+          "imports": {
+            "p5": "https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"
+          }
+        }
+    </script>
+    <script type="module">
+    import 'p5';
+
+    /**
+     * Solar Panel Simulation
+     * 
+     * This simulation models the energy generation of a solar panel based on:
+     * - Solar position (azimuth and elevation)
+     * - Panel orientation (fixed south-facing)
+     * - Panel tilt angle (fixed)
+     * - Location (latitude and altitude)
+     * - Time of day and day of year
+     * 
+     * Key Physics:
+     * 1. Solar Zenith Angle: Angle between sun's position and vertical (zenith)
+     *    - Affected by latitude, day of year, and time of day
+     *    - Lower zenith angle = more direct sunlight
+     * 
+     * 2. Panel Orientation: South-facing with fixed tilt
+     *    - Ideal tilt matches latitude for yearly optimal performance
+     *    - Angle of Incidence = Angle between sun direction and panel normal
+     * 
+     * 3. Atmospheric Effects: Modeled by empirical equations
+     *    - Air Mass: Ratio of atmosphere path length to vertical path length
+     *    - Altitude correction: Less atmosphere at higher elevations
+     *    - Scattering and absorption: More significant at low sun angles
+     */
+    let sliderLat, sliderAlt;
+    let buttonStart;
+    let energyOutput = 0;
+    let energyData = [];
+    let sunPos = { zenith: 0, azimuth: 0 };
+    let simulationRunning = false;
+    let startTime = 0;
+    let currentHour = 6; // Start at 6 AM
+    let dayOfYear = 172; // June 21st (Summer Solstice in Northern Hemisphere)
+    let latitude = 40;
+    let altitude = 0.5;
+    
+    // Constants
+    const PI = Math.PI;
+    const RAD = PI/180;
+    const EARTH_TILT = 23.45 * RAD; // Earth's axial tilt in radians
+    const PANEL_TILT = 18 * RAD; // Panel tilt angle
+    const PANEL_ORIENTATION = PI/2; // South-facing (0=North, PI/2=East, PI=South, 3PI/2=West)
+    const PANEL_EFFICIENCY = 1; // Since there is no heating, we assume 100% efficiency
+    const PANEL_AREA = 1.0; // 1 square meter
+    const SOLAR_CONSTANT = 1361; // Solar irradiance at top of atmosphere (W/m²)
+    const GROUND_REFLECTANCE = 0.2; // Typical ground reflectance (albedo)
+    
+    // Bird-friendly colors
+    const SKY_GRADIENT_TOP = [135, 206, 235]; // Light blue (RGB)
+    const SKY_GRADIENT_BOTTOM = [255, 165, 0]; // Orange (sunset)
+    const SUN_COLOR = [255, 204, 102]; // Warm yellow (RGB)
+    const CLOUD_COLOR = [255, 255, 255]; // White
+    const TREE_TRUNK_COLOR = [101, 67, 33]; // Brown (RGB)
+    const TREE_FOLIAGE_COLOR = [34, 139, 34]; // Forest green (RGB)
+    const PANEL_COLOR = [70, 70, 80]; // Dark gray (RGB)
+    const PANEL_BORDER_COLOR = [110, 110, 120]; // Light gray (RGB)
+    const GROUND_COLOR = [169, 169, 169]; // Dark gray (RGB)
+    const ENERGY_BAR_COLOR = [255, 215, 0]; // Gold (RGB)
+    const ENERGY_TEXT_COLOR = [255, 255, 255]; // White (RGB)
+    const UI_BACKGROUND_COLOR = [40, 40, 40, 180]; // Semi-transparent dark gray (RGBA)
+    const UI_TEXT_COLOR = [255, 255, 255]; // White (RGB)
+    const UI_LABEL_COLOR = [200, 200, 200]; // Light gray (RGB)
+
+
+    const cloudPositions = [
+            { x: 100, y: 80, size: 60 },
+            { x: 300, y: 120, size: 40 },
+            { x: 500, y: 70, size: 80 },
+            { x: 700, y: 100, size: 50 },
+            { x: 200, y: 150, size: 70 },
+            { x: 600, y: 140, size: 90 },
+            { x: 150, y: 200, size: 40 },
+            { x: 400, y: 180, size: 60 },
+            { x: 750, y: 160, size: 70 },
+            { x: 550, y: 200, size: 50 }
+        ];
+    
+    const treePositions = [
+        { x: 100, trunkHeight: 110, foliageSize: 90 },
+        { x: 200, trunkHeight: 115, foliageSize: 90 },
+        { x: 300, trunkHeight: 110, foliageSize: 90 },
+        { x: 400, trunkHeight: 120, foliageSize: 90 },
+        { x: 500, trunkHeight: 111, foliageSize: 90 },
+        { x: 600, trunkHeight: 116, foliageSize: 90 },
+        { x: 700, trunkHeight: 117, foliageSize: 100 },
+        { x: 800, trunkHeight: 120, foliageSize: 110 }
+    ]
+        
+    /**
+     * Setup the simulation environment
+     */
+    window.setup = function() {
+        createCanvas(1000, 600);
+        frameRate(30);
+        
+        // Create sliders with bird-friendly labels and colors
+        sliderLat = createSlider(-90, 90, latitude, 1);
+        sliderLat.position(70, height + 10);
+        sliderLat.style('width', '150px');
+        sliderLat.input(() => {
+            latitude = parseFloat(sliderLat.value());
+            updateEnvironment();
+        });
+        
+        sliderAlt = createSlider(0, 4, altitude, 0.1);
+        sliderAlt.position(70, height + 40);
+        sliderAlt.style('width', '150px');
+        sliderAlt.input(() => {
+            altitude = parseFloat(sliderAlt.value());
+            updateEnvironment();
+        });
+        
+        // Create start button with bird-friendly colors
+        buttonStart = createButton('Start Simulation');
+        buttonStart.position(width - 150, height + 25);
+        buttonStart.style('padding', '8px 16px');
+        buttonStart.style('font-size', '14px');
+        buttonStart.style('border-radius', '4px');
+        buttonStart.style('border', 'none');
+        buttonStart.style('background-color', 'rgb(70, 130, 180)');
+        buttonStart.style('color', 'white');
+        buttonStart.mousePressed(startSimulation);
+        
+        // Initialize environment
+        updateEnvironment();
+    };
+
+    /**
+     * Start the simulation
+     */
+    function startSimulation() {
+        if (!simulationRunning) {
+            simulationRunning = true;
+            startTime = millis();
+            energyData = [];
+            energyOutput = 0;
+            buttonStart.html('Reset Simulation');
+            buttonStart.style('background-color', 'rgb(178, 34, 34)'); // Firebrick red
+
+        } else {
+            simulationRunning = false;
+            reset();
+            buttonStart.html('Start Simulation');
+            buttonStart.style('background-color', 'rgb(70, 130, 180)'); // Steel blue
+        }
+    }
+    
+    /**
+     * Update environment based on location
+     */
+    function updateEnvironment() {
+        // Update sun position immediately when sliders change
+        calculateSunPosition();
+
+        // Update cloud positions
+        updateClouds();
+        
+    }
+    
+    /**
+     * Calculate sun position based on time, date, and location
+     * 
+     * Equations from:
+     * - Solar Engineering of Thermal Processes by Duffie and Beckman
+     * - NOAA Solar Position Calculator
+     */
+    function calculateSunPosition() {
+        // source: https://www.omnicalculator.com/physics/sun-angle
+        // we have: dayOfYear, currentHour, latitude, altitude
+        // assume longitude = 0 for simplicity as it doesn't affect solar path
+        let declination_angle = EARTH_TILT * sin(RAD * (360/365 * (dayOfYear -81)));
+        let local_hour_angle = RAD*(currentHour - 12) * 15; // Convert hours to degrees
+
+        let elevation = asin(sin(declination_angle) * sin(RAD * latitude) + cos(declination_angle) * cos(RAD * latitude) * cos(local_hour_angle));
+        let azimuth = acos( (sin(declination_angle)*cos(RAD*latitude) - cos(declination_angle)*sin(RAD*latitude)*cos(local_hour_angle) ) / cos(elevation) )
+        
+        if (local_hour_angle > 0) {
+            azimuth = 2 * PI - azimuth;
+        }
+        
+        // Store sun position
+        sunPos.zenith = PI/2 - elevation; // Zenith angle
+        sunPos.azimuth = azimuth; // Azimuth angle
+
+        // Calculate incident radiation on the panel
+        const angleOfIncidence = acos(sin(RAD * latitude) * sin(declination_angle) + cos(RAD * latitude) * cos(declination_angle) * cos(local_hour_angle - PANEL_ORIENTATION));
+
+        // due to panel tilt, we need to adjust the angle of incidence
+        // in a triangle, the angle of incidence is the angle between the sun and the panel normal
+        // the angle we found is the angle between the sun and the ground normal
+        // so we need to subtract the panel tilt angle
+        const adjustedAngleOfIncidence = angleOfIncidence - PANEL_TILT;
+
+        const airMass = 1 / (cos(sunPos.zenith) + 0.15 * pow(93.885 - sunPos.zenith * 180/PI, -1.253));
+        const atmosphericTransmittance = exp(-0.14 * airMass);
+        const incidentRadiation = SOLAR_CONSTANT * atmosphericTransmittance * cos(adjustedAngleOfIncidence) || 0;
+        let deratedOutput = incidentRadiation * PANEL_AREA * PANEL_EFFICIENCY * cos(adjustedAngleOfIncidence);
+        
+        // adjust for altitude
+        const altitudeFactor = exp(-0.0001184 * altitude * 1000); // Adjust for altitude (in meters)
+        const adjustedOutput = deratedOutput * altitudeFactor;
+        deratedOutput = adjustedOutput * cos(adjustedAngleOfIncidence);
+        
+        // Store data point if simulation is running
+        if (simulationRunning) {
+            energyData.push({
+                hour: currentHour,
+                elevation: elevation,
+                radiation: incidentRadiation,
+                output: abs(deratedOutput),
+            });
+            
+            // Update total energy output (Wh)
+            energyOutput += abs(deratedOutput / 60); // Convert from W to Wh (1/60 hour per minute)
+        }
+    }
+    
+    /**
+     * Draw the simulation
+     */
+    window.draw = function() {
+        // Calculate sun position even when simulation isn't running
+        calculateSunPosition();
+        
+        // Draw sky gradient
+        drawSky();
+        
+        // Draw sun
+        drawSun();
+        
+        // Update cloud positions
+        updateClouds();
+
+        // Draw clouds
+        drawClouds();
+        
+        // Draw ground
+        drawGround();
+
+        // Draw panel
+        drawPanel();
+        
+        // Draw trees
+        drawTrees();
+        
+ 
+        
+        // Draw energy data
+        drawEnergyData();
+        
+        // Draw UI
+        drawUI();
+        
+        // Update time if simulation is running
+        if (simulationRunning) { // Update every frame
+            currentHour += 1/60; // Increment by one minute
+            
+            // stop time at 6pm
+            if (currentHour >= 6+12) {
+                simulationRunning = false;
+                currentHour = 6; // Reset to 6 AM
+            }
+        }
+    }
+    
+    /**
+     * Draw sky gradient background
+     */
+    function drawSky() {
+        // Calculate sun's elevation
+        const solarElevation = PI/2 - sunPos.zenith;
+        
+        // Calculate color interpolation based on sun elevation
+        // More dramatic sunset colors when sun is near horizon
+        let skyTopColor, skyBottomColor;
+        
+        if (solarElevation > 0) {
+            const t = min(1, pow(max(0, (PI/4 - solarElevation) / (PI/4)), 2));
+            skyTopColor = [
+                SKY_GRADIENT_TOP[0] * (1 - t) + SKY_GRADIENT_BOTTOM[0] * t,
+                SKY_GRADIENT_TOP[1] * (1 - t) + SKY_GRADIENT_BOTTOM[1] * t,
+                SKY_GRADIENT_TOP[2] * (1 - t) + SKY_GRADIENT_BOTTOM[2] * t
+            ];
+            skyBottomColor = SKY_GRADIENT_BOTTOM;
+        } else {
+            // Night sky colors
+            skyTopColor = [25, 25, 112]; // Midnight blue
+            skyBottomColor = [10, 10, 40]; // Darker midnight blue
+        }
+        
+        // Draw gradient
+        noStroke();
+        for (let y = 0; y < height/2; y++) {
+            const t = y / (height/2);
+            fill(
+                skyTopColor[0] * (1 - t) + skyBottomColor[0] * t,
+                skyTopColor[1] * (1 - t) + skyBottomColor[1] * t,
+                skyTopColor[2] * (1 - t) + skyBottomColor[2] * t
+            );
+            rect(0, y, width, 1);
+        }
+    }
+    
+    /**
+     * Draw sun with realistic size and position
+     */
+    function drawSun() {
+        
+        let solarElevation = PI/2 - sunPos.zenith;
+
+        // Calculate sun position on screen
+        const sunX = map(sunPos.azimuth, 0  , 2*PI, 0, 1.2*width);
+        const sunY = map(sunPos.zenith, -PI/2, PI/2, height/2, 0);
+        
+        // Calculate sun size (smaller when lower in sky)
+        // Formula: size = base_size * (elevation_factor + atmospheric_scattering_factor)
+        const minSize = 20; // Minimum sun size at horizon
+        const maxSize = 50; // Maximum sun size at zenith
+        const elevationFactor = (solarElevation + PI/2) / PI; // 0 at horizon, 1 at zenith
+        const atmosphericScattering = pow(elevationFactor, 0.5) * 0.5; // More scattering at lower elevations
+        const sunSize = minSize + (maxSize - minSize) * (elevationFactor * 0.5 + atmosphericScattering);
+        
+        // Draw sun
+        noStroke();
+        fill(SUN_COLOR[0], SUN_COLOR[1], SUN_COLOR[2]);
+        ellipse(sunX, sunY, sunSize, sunSize);
+        
+        // Draw sun glow (larger when lower in sky)
+        // Formula: glow_size = sun_size * (glow_factor + scattering_factor)
+        const glowFactor = 1.5 + (1 - elevationFactor) * 1.0; // Stronger glow at lower elevations
+        const scatteringFactor = pow(1 - elevationFactor, 2) * 1.0; // More scattering at lower elevations
+        const glowSize = sunSize * (glowFactor + scatteringFactor);
+        
+        // Create sun glow gradient
+        const glowSteps = 8;
+        for (let i = glowSteps; i >= 0; i--) {
+            const alpha = map(i, 0, glowSteps, 0, 100);
+            const size = map(i, 0, glowSteps, sunSize, glowSize);
+            fill(SUN_COLOR[0], SUN_COLOR[1], SUN_COLOR[2], alpha);
+            ellipse(sunX, sunY, size, size);
+        }
+    }
+    
+    /**
+     * Draw clouds with different sizes and positions
+     */
+    function drawClouds() {
+        // Define cloud positions and sizes
+
+        
+        // Draw clouds
+        noStroke();
+        fill(CLOUD_COLOR[0], CLOUD_COLOR[1], CLOUD_COLOR[2], 200); // Semi-transparent white
+        
+        for (let i = 0; i < cloudPositions.length; i++) {
+            const cloud = cloudPositions[i];
+            // Create clusters of 3-5 circles for each cloud
+            if(!cloud.hasOwnProperty('numCircles')) cloud.numCircles = floor(random(3, 6));
+            
+            if(!cloud.hasOwnProperty('circles')){
+                cloud.circles = [];
+                for (let j = 0; j < cloud.numCircles; j++) {
+                    const offsetX = random(-cloud.size/3, cloud.size/3);
+                    const offsetY = random(-cloud.size/6, cloud.size/6);
+                    const circleSize = random(cloud.size * 0.7, cloud.size * 1.3);
+                    circle = {
+                        x: cloud.x + offsetX,
+                        y: cloud.y + offsetY,
+                        size: circleSize
+                    };
+                    cloud.circles.push(circle);
+                }
+            }
+            for (let j = 0; j < cloud.numCircles; j++) {
+                const circle = cloud.circles[j];
+                ellipse(circle.x, circle.y, circle.size, circle.size);
+            }
+
+        }
+    }
+    
+    
+    
+    /**
+     * Draw ground with perspective effect
+     */
+    function drawGround() {
+        // Calculate ground height based on perspective
+        const groundHeight = height/2 + 50 + 30; // Original ground height plus mountain elevation
+        
+        // Draw ground with gradient to simulate depth
+        for (let y = height/2 + 50; y < height; y++) {
+            const t = (y - (height/2 + 50)) / (height/2);
+            const r = GROUND_COLOR[0] * (1 - t) + 40 * t;
+            const g = GROUND_COLOR[1] * (1 - t) + 40 * t;
+            const b = GROUND_COLOR[2] * (1 - t) + 40 * t;
+            fill(r, g, b);
+            noStroke();
+            rect(0, y, width, 1);
+        }
+        
+        // Draw mountain contours with soft peaks
+        fill(60, 60, 60); // Darker gray for mountain shadows
+        noStroke();
+        beginShape();
+        vertex(0, groundHeight);
+
+        vertex(width, groundHeight);
+        vertex(0, groundHeight);
+        endShape(CLOSE);
+    }
+    
+    /**
+     * Draw solar panel with 3D effect
+     */
+    function drawPanel() {
+        // Calculate panel position
+        const panelX = width/2;
+        const panelY = height/2 - 40; // Adjusted for mountain elevation
+        const panelW = 80;
+        const panelH = 40;
+        
+        // Calculate panel corners with tilt
+        // Front top edge
+        const frontTopX = panelX - panelW/2;
+        const frontTopY = panelY - panelH/2;
+        
+        // Back top edge (tilted away)
+        const backTopX = panelX + panelW/2;
+        const backTopY = panelY - panelH/2 + panelH * sin(PANEL_TILT);
+        
+        // Front bottom edge
+        const frontBottomX = panelX - panelW/2;
+        const frontBottomY = panelY + panelH/2;
+        
+        // Back bottom edge
+        const backBottomX = panelX + panelW/2;
+        const backBottomY = panelY + panelH/2 + panelH * sin(PANEL_TILT);
+        
+        // Draw panel frame
+        stroke(PANEL_BORDER_COLOR[0], PANEL_BORDER_COLOR[1], PANEL_BORDER_COLOR[2]);
+        strokeWeight(2);
+        fill(PANEL_COLOR[0], PANEL_COLOR[1], PANEL_COLOR[2]);
+        
+        // Front face
+        beginShape();
+        vertex(frontTopX, frontTopY);
+        vertex(backTopX, backTopY);
+        vertex(backBottomX, backBottomY);
+        vertex(frontBottomX, frontBottomY);
+        endShape(CLOSE);
+        
+        // Top face
+        fill(PANEL_COLOR[0] * 1.2, PANEL_COLOR[1] * 1.2, PANEL_COLOR[2] * 1.2);
+        beginShape();
+        vertex(frontTopX, frontTopY);
+        vertex(backTopX, backTopY);
+        vertex(panelX + panelW/2 * cos(PANEL_TILT), panelY - panelH/2 * sin(PANEL_TILT) - panelW * sin(PANEL_TILT));
+        vertex(panelX - panelW/2 * cos(PANEL_TILT), panelY - panelH/2 * sin(PANEL_TILT) - panelW * sin(PANEL_TILT));
+        endShape(CLOSE);
+        
+        // Right side face
+        fill(PANEL_COLOR[0] * 0.8, PANEL_COLOR[1] * 0.8, PANEL_COLOR[2] * 0.8);
+        beginShape();
+        vertex(backTopX, backTopY);
+        vertex(backBottomX, backBottomY);
+        vertex(panelX + panelW/2 * cos(PANEL_TILT), panelY + panelH/2 * sin(PANEL_TILT) + panelW * sin(PANEL_TILT));
+        vertex(panelX + panelW/2 * cos(PANEL_TILT), panelY - panelH/2 * sin(PANEL_TILT) - panelW * sin(PANEL_TILT));
+        endShape(CLOSE);
+        
+        // Add detail lines to the panel
+        stroke(PANEL_BORDER_COLOR[0], PANEL_BORDER_COLOR[1], PANEL_BORDER_COLOR[2], 100);
+        strokeWeight(1);
+        
+        // Horizontal detail lines
+        for (let y = frontTopY + 5; y < frontBottomY; y += 10) {
+            line(frontTopX, y, backTopX, y + panelH * sin(PANEL_TILT));
+        }
+        
+        // Vertical detail lines
+        for (let x = frontTopX + 10; x < backTopX; x += 10) {
+            const frontY = map(x, frontTopX, backTopX, frontTopY, backTopY);
+            const backY = map(x, frontTopX, backTopX, frontBottomY, backBottomY);
+            line(x, frontY, x, backY);
+        }
+        
+        // Draw sunbeam indicator when sun is shining
+        if (sunPos.zenith < PI/2) {
+            // Calculate sunbeam angle
+            const panelCenterX = panelX;
+            const panelCenterY = panelY - panelH/2 * sin(PANEL_TILT);
+            const sunX = map(sunPos.azimuth, 0, 2*PI, 0, width);
+            const sunY = map(PI/2 - sunPos.zenith, -PI/2, PI/2, height/2, 0);
+            
+            const sunbeamAngle = atan2(sunY - panelCenterY, sunX - panelCenterX);
+            
+            // Draw sunbeam
+            stroke(255, 255, 200, 50);
+            strokeWeight(4);
+            line(panelCenterX, panelCenterY, panelCenterX + cos(sunbeamAngle) * 100, panelCenterY + sin(sunbeamAngle) * 100);
+            
+            // Draw sunbeam arrow
+            const arrowSize = 10;
+            const arrowAngle1 = sunbeamAngle + 2.5;
+            const arrowAngle2 = sunbeamAngle - 2.5;
+            const arrowX = panelCenterX + cos(sunbeamAngle) * 100;
+            const arrowY = panelCenterY + sin(sunbeamAngle) * 100;
+            line(arrowX, arrowY, arrowX - cos(arrowAngle1) * arrowSize, arrowY - sin(arrowAngle1) * arrowSize);
+            line(arrowX, arrowY, arrowX - cos(arrowAngle2) * arrowSize, arrowY - sin(arrowAngle2) * arrowSize);
+        }
+    }
+    
+    /**
+     * Draw energy production data visualization
+     */
+    function drawEnergyData() {
+        // Draw energy history graph
+        const graphX = 40;
+        const graphY = height - 170;
+        const graphW = width - 240;
+        const graphH = 80;
+        
+        // Draw graph background with bird-friendly colors
+        fill(UI_BACKGROUND_COLOR[0], UI_BACKGROUND_COLOR[1], UI_BACKGROUND_COLOR[2], UI_BACKGROUND_COLOR[3]);
+        stroke(80);
+        strokeWeight(1);
+        rect(graphX, graphY, graphW, graphH);
+        
+        // Draw graph title
+        fill(UI_TEXT_COLOR[0], UI_TEXT_COLOR[1], UI_TEXT_COLOR[2]);
+        noStroke();
+        textSize(10);
+        textAlign(CENTER, TOP);
+        text('Energy Production History (W)', graphX + graphW/2, graphY - 15);
+        
+        // Draw x-axis labels (Time of Day)
+        textAlign(CENTER, TOP);
+        fill(UI_LABEL_COLOR[0], UI_LABEL_COLOR[1], UI_LABEL_COLOR[2]);
+        text('6 AM', graphX, graphY + graphH + 5);
+        text('12 PM', graphX + graphW/2, graphY + graphH + 5);
+        text('6 PM', graphX + graphW, graphY + graphH + 5);
+        
+        // Draw y-axis labels
+        textAlign(RIGHT, CENTER);
+        text('200W', graphX - 5, graphY + graphH/4);
+        text('700W', graphX - 5, graphY + graphH/2);
+        text('1200W', graphX - 5, graphY + 3*graphH/4);
+        
+        // Draw grid lines
+        stroke(60);
+        strokeWeight(0.5);
+        line(graphX, graphY + graphH/4, graphX + graphW, graphY + graphH/4);
+        line(graphX, graphY + graphH/2, graphX + graphW, graphY + graphH/2);
+        line(graphX, graphY + 3*graphH/4, graphX + graphW, graphY + 3*graphH/4);
+        line(graphX + graphW/2, graphY, graphX + graphW/2, graphY + graphH);
+        
+        // Draw energy data line
+        noFill();
+        stroke(ENERGY_BAR_COLOR[0], ENERGY_BAR_COLOR[1], ENERGY_BAR_COLOR[2]);
+        strokeWeight(2);
+        beginShape();
+        for (let i = 0; i < energyData.length; i++) {
+            const data = energyData[i];
+            const x = map(data.hour, 6, 6+12, graphX, graphX + graphW);
+            const y = map(data.output, 0, 1200, graphY + graphH, graphY);
+            vertex(x, y);
+        }
+        endShape();
+        
+        // Draw current energy output
+        const currentOutput = energyData.length > 0 ? energyData[energyData.length-1].output : 0;
+        const efficiency = currentOutput / (SOLAR_CONSTANT * PANEL_AREA) * 100;
+        
+        // Draw energy output background
+        fill(UI_BACKGROUND_COLOR[0], UI_BACKGROUND_COLOR[1], UI_BACKGROUND_COLOR[2], UI_BACKGROUND_COLOR[3]);
+        stroke(80);
+        strokeWeight(1);
+        rect(width - 170, height - 120, 160, 90);
+        
+        // Draw energy output text
+        fill(UI_TEXT_COLOR[0], UI_TEXT_COLOR[1], UI_TEXT_COLOR[2]);
+        noStroke();
+        textSize(14);
+        textAlign(LEFT, TOP);
+        text('Current Output', width - 160, height - 115);
+        
+        textSize(15);
+        textAlign(RIGHT, TOP);
+        text(`${nf(currentOutput, 1, 1)} W`, width - 20, height - 100);
+        
+        textSize(14);
+        textAlign(LEFT, TOP);
+        text('Efficiency', width - 160, height - 90);
+        
+        textSize(15);
+        textAlign(RIGHT, TOP);
+        text(`${nf(efficiency, 2, 1)} %`, width - 20, height - 75);
+        
+        textSize(14);
+        textAlign(LEFT, TOP);
+        text('Total Energy', width - 160, height - 65);
+        
+        textSize(15);
+        textAlign(RIGHT, TOP);
+        text(`${nf(energyOutput, 1, 1)} Wh`, width - 20, height - 50);
+    }
+    
+    /**
+     * Draw UI elements with bird-friendly design
+     */
+    function drawUI() {
+        // Draw UI background
+        fill(UI_BACKGROUND_COLOR[0], UI_BACKGROUND_COLOR[1], UI_BACKGROUND_COLOR[2], UI_BACKGROUND_COLOR[3]);
+        stroke(80);
+        strokeWeight(1);
+        rect(10, height - 65, 340, 90);
+        
+        // Draw title
+        fill(UI_TEXT_COLOR[0], UI_TEXT_COLOR[1], UI_TEXT_COLOR[2]);
+        noStroke();
+        textSize(20);
+        textAlign(LEFT, TOP);
+        
+        text('Solar Panel Simulation', 10, height - 600);
+        
+        // Draw labels
+        textSize(12);
+        fill(UI_LABEL_COLOR[0], UI_LABEL_COLOR[1], UI_LABEL_COLOR[2]);
+        textAlign(RIGHT, CENTER);
+        text('Latitude:', 60, height - 40);
+        text('Altitude:', 60, height - 55);
+        
+        // Draw slider values
+        textAlign(LEFT, CENTER);
+        fill(UI_TEXT_COLOR[0], UI_TEXT_COLOR[1], UI_TEXT_COLOR[2]);
+        text(`${nf(latitude, 1, 1)}°`, 220, height - 40);
+        text(`${nf(altitude, 1, 1)} km`, 220, height - 55);
+        
+        // Draw instructions
+        textSize(10);
+        fill(UI_LABEL_COLOR[0], UI_LABEL_COLOR[1], UI_LABEL_COLOR[2]);
+        textAlign(LEFT, TOP);
+        text('Adjust sliders to change location. Click Start to begin simulation.', 20, height - 15);
+    }
+
+    function drawTrees() {
+
+        
+        // Draw trees
+        for (let i = 0; i < treePositions.length; i++) {
+            const tree = treePositions[i];
+            
+            // Draw trunk
+            fill(TREE_TRUNK_COLOR[0], TREE_TRUNK_COLOR[1], TREE_TRUNK_COLOR[2]);
+            noStroke();
+            rect(tree.x - 5, height/2 + 50, 10, tree.trunkHeight);
+            
+            // Draw foliage (multiple circles for a more natural look)
+            fill(TREE_FOLIAGE_COLOR[0], TREE_FOLIAGE_COLOR[1], TREE_FOLIAGE_COLOR[2]);
+            if(!tree.hasOwnProperty('numCircles'))tree.numCircles = floor(random(3, 5));
+
+            if(!tree.hasOwnProperty('circles')){
+                tree.circles = [];
+                for (let j = 0; j < tree.numCircles; j++) {
+                    const offsetX = random(-tree.foliageSize/3, tree.foliageSize/3);
+                    const offsetY = random(-tree.foliageSize/4, tree.foliageSize/4);
+                    const circleSize = random(tree.foliageSize * 0.7, tree.foliageSize * 1.3);
+
+                    circle = {
+                        x: tree.x + offsetX,
+                        y: height/2 + 50 + offsetY,
+                        size: circleSize
+                    };
+                    tree.circles.push(circle);
+                }
+            }
+
+            for (let j = 0; j < tree.numCircles; j++) {
+                const circle = tree.circles[j];
+                ellipse(circle.x, circle.y, circle.size, circle.size);
+            }
+
+        }
+    }
+    
+    function updateClouds() {
+        drawClouds(); // makes sure clouds have necessary properties    
+        // Update cloud positions and sizes
+        for (let i = 0; i < cloudPositions.length; i++) {
+            const cloud = cloudPositions[i];
+            for(let circle of cloud.circles){
+                circle.x += random(1, 5);
+                circle.y += random(-0.5, 0.5);
+                circle.size += random(-0.5, 0.5);
+            }
+
+            // Reset cloud position if it goes off screen
+            if (cloud.circles[0].x > width + cloud.size) {
+                // delete numCirclses and circles properties
+                delete cloud.numCircles;
+                delete cloud.circles;
+
+                // set position
+                cloud.x = random(-cloud.size, -cloud.size/2);
+                cloud.y = random(0, height/2);
+            }
+        }
+
+        
+    }
+
+    function reset(){
+        // Reset simulation parameters
+        simulationRunning = false;
+        startTime = 0;
+        currentHour = 6; // Start at 6 AM
+        dayOfYear = 172; // June 21st (Summer Solstice in Northern Hemisphere)
+        latitude = 40;
+        altitude = 0.5;
+        
+        // Reset sliders
+        sliderLat.value(latitude);
+        sliderAlt.value(altitude);
+        
+        // Reset energy data
+        energyData = [];
+        energyOutput = 0;
+        
+        // Reset button text
+        buttonStart.html('Start Simulation');
+        buttonStart.style('background-color', 'rgb(70, 130, 180)'); // Steel blue
+    }
+    </script>
+</body>
+</html>
