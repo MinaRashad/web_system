@@ -23,7 +23,7 @@
     <div class="context-menu" id="contextMenu">
         <button onclick="location.reload()">Refresh</button>
         <button onclick="showAddAppPrompt()">Add App</button> 
-        <button id="deleteAppButton" onclick="deleteApp(event)" style="display:none;">Delete</button>
+        <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
         <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
         <button id="pasteButton" onclick="pasteItem(event)" style="display:none;">Paste</button>
         <button onclick="showCreateFolderPrompt()">Create Folder</button>
@@ -60,7 +60,7 @@
             <div class="folder-content"></div>
         </div>
     </template>
-    
+    <script src="desktop-helper.js"></script>
     <script src="desktop.js"></script>
 </body>
 </html>
