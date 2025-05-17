@@ -1,3 +1,25 @@
+/**
+ * Structure of the directory tree:
+ * {
+ *  "<Folder Name>": {
+ *       ".meta_data": {
+ *          "path": "/<Folder Name>",
+ *         "type": "folder",
+ *         "position" ?: [x, y]
+ *        },
+ *       "<File 1>": {
+ *           ".meta_data": {
+ *              "path": "/<Folder Name>/<File 1>",
+ *             "type": "file",
+ *            "link": "<File Link>",
+ *            "icon": "<File Icon>",
+ *           "position" ?: [x, y]
+ *           }
+ *       },
+ * }
+ */
+
+
 // Icon class
 class DesktopIcon {
     constructor(name, link, position, icon, type = "file", contents = []) {
@@ -99,17 +121,17 @@ function create_initial_tree() {
 
     // Default icons
     const defaultIcons = [
-        { name: "Knowledge Cards", link: "KnowledgeCards.html", icon: "🧠" },
-        { name: "Piano", link: "piano.html", icon: "🎹" },
-        { name: "Chess", link: "chess.html", icon: "♟" },
-        { name:"Checkers", link: "checkers.html", icon: "🔲" },
-        { name: "Solar System", link: "solarSystem.html", icon: "🪐" },
-        { name: "Hearing Test", link: "hearing_test.html", icon: "👂" },
-        { name: "Gardening Game", link: "gardening_game.html", icon: "🌱" },
+        { name: "Knowledge Cards", link: "./default_apps/KnowledgeCards.html", icon: "🧠" },
+        { name: "Piano", link: "./default_apps/piano.html", icon: "🎹" },
+        { name: "Chess", link: "./default_apps/chess.html", icon: "♟" },
+        { name:"Checkers", link: "./default_apps/checkers.html", icon: "🔲" },
+        { name: "Solar System", link: "./default_apps/solarSystem.html", icon: "🪐" },
+        { name: "Hearing Test", link: "./default_apps/hearing_test.html", icon: "👂" },
+        { name: "Gardening Game", link: "./default_apps/gardening_game.html", icon: "🌱" },
         { name: "HACKIT", link: "HACKIT/index.html", icon: "🔍" },
         { name: "Journal", link: "https://minarashad.github.io/AI-therapist/", icon: "📓" },
-        { name: "Clock", link: "clock.html", icon: "🕒" },
-        { name: "Ladder", link: "ladder.html", icon: "🪜" }
+        { name: "Clock", link: "./default_apps/clock.html", icon: "🕒" },
+        { name: "Ladder", link: "./default_apps/ladder.html", icon: "🪜" }
     ];
 
     defaultIcons.forEach(icon => {
@@ -128,6 +150,23 @@ function create_initial_tree() {
     });
 
     localStorage.setItem('directory_tree', JSON.stringify(directory_tree));    
+}
+
+function is_valid_name(name) {
+    invalid_names = ["", ".meta_data"]
+    invalid_characters = ["<", ">", ":", '"', "/", "\\", "|", "?", "*"]
+    for(let i = 0; i < invalid_names.length; i++) {
+        if(name === invalid_names[i]) {
+            return false;
+        }
+    }
+    for(let i = 0; i < invalid_characters.length; i++) {
+        if(name.includes(invalid_characters[i])) {
+            return false;
+        }
+    }
+    return true;
+
 }
 
 function getObjectByPath(path) {
@@ -170,18 +209,78 @@ function getNameFromPath(path) {
     return parts[parts.length - 1];
 }
 
+function deleteByPath(path) {
+    const name = getNameFromPath(path);
+    const parent = getParentByPath(path);
+    
+    if (parent && parent[name]) {
+        delete parent[name];
+        setTree();
+        loadDesktopIcons();
+    }
 
+    // Refresh folder window if in a folder
+    if (parent && parent[".meta_data"].path !== "/Desktop") {
+        refreshFolderWindow(parent[".meta_data"].path);
+    }
+
+    return parent;
+}
+
+function copyByPath(itemPath, targetPath) {
+    target = getObjectByPath(targetPath);
+    item = getObjectByPath(itemPath);
+    itemName = getNameFromPath(itemPath);
+    
+    if (!target || !item) return;
+
+    if (target['.meta_data'].type !== "folder") {
+        showError(`${targetPath} is not a folder.`);
+        console.log()
+        return false;
+    };
+
+    if (target[itemPath]) {
+        showError(`"${itemPath}" already exists.`);
+        return false;
+    }
+
+    // Copy the item to target
+    target[itemName] = JSON.parse(JSON.stringify(item));
+
+
+    // Update path in metadata
+    target[itemName][".meta_data"].path = `${targetPath}/${itemName}`;
+    
+    // If it's a folder, update paths of all children recursively
+    if (item[".meta_data"].type === "folder") {
+        updateChildPaths(target[itemName], `${targetPath}/${itemName}`);
+    }
+    
+    // Update local storage
+    setTree();
+    
+    // Refresh UI
+    loadDesktopIcons();
+    refreshFolderWindow(targetPath);
+
+    return true
+
+}
+
+function moveByPath(itemPath, targetPath) {
+    if(copyByPath(itemPath, targetPath))
+    {
+        deleteByPath(itemPath);
+    }
+}
 
 
 // Delete app
 function deleteItem() {
     path = current_context[".meta_data"].path + "/" + targetedIcon.name;
 
-    const parent = getParentByPath(path);
-
-    if (!parent) return;
-
-    delete parent[targetedIcon.name];
+    const parent = deleteByPath(path);
 
     // Update local storage
     setTree();
@@ -200,23 +299,16 @@ function deleteItem() {
 
 
 
-function addApp() {
-    const name = document.getElementById('appName').value;
-    const icon = document.getElementById('appIcon').value;
-    const link = document.getElementById('appLink').value;
-    
-    if (!name) return;
-    
-    // Get current folder path
-    let currentPath;
-    if (current_context[".meta_data"]) {
-        currentPath = current_context[".meta_data"].path;
-    } else {
-        currentPath = "/Desktop";
+function addApp(name, icon, link, currentPath) {
+    if(is_valid_name(name) === false) {
+        showError("Invalid app name.");
+        return;
     }
     
+
+    let context = getObjectByPath(currentPath);
     // Check if file/folder with same name already exists
-    if (current_context[name]) {
+    if (context[name]) {
         showError(`A file or folder named "${name}" already exists.`);
         return;
     }
@@ -251,23 +343,19 @@ function addApp() {
 
 
 
-function createFolder() {
-    const folderName = document.getElementById('folderName').value;
-    
-    if (!folderName) return;
-
-    if(folderName.includes("/")) {
-        showError("Folder name cannot contain '/'");
+function createFolder(folderName, currentPath) {    
+    if(is_valid_name(folderName) === false) {
+        showError("Invalid folder name.");
         return;
     }
 
 
     
     // Get current folder path
-    let currentPath = current_context['.meta_data'].path;
+    let context = getObjectByPath(currentPath);
     
     // Check if file/folder with same name already exists
-    if (current_context[folderName]) {
+    if (context[folderName]) {
         showError(`A file or folder named "${folderName}" already exists.`);
         return;
     }
@@ -275,7 +363,7 @@ function createFolder() {
     pos = getMousePos(canvas, event);
     
     // Add the new folder
-    current_context[folderName] = {
+    context[folderName] = {
         ".meta_data": {
             "path": `${currentPath}/${folderName}`,
             "type": "folder",
@@ -410,26 +498,10 @@ function pasteItem(e) {
         return;
     }
     
-    const sourceParent = getParentByPath(clipboardItem.path);
+    // Move the item
+    moveByPath(clipboardItem.path, targetPath);
 
-    // Copy the item to target
-    targetFolder[clipboardItem.name] = JSON.parse(JSON.stringify(sourceItem));
-    
-    // Update path in metadata
-    targetFolder[clipboardItem.name][".meta_data"].path = `${targetPath}/${clipboardItem.name}`;
-    
-    // If it's a folder, update paths of all children recursively
-    if (sourceItem[".meta_data"].type === "folder") {
-        updateChildPaths(targetFolder[clipboardItem.name], `${targetPath}/${clipboardItem.name}`);
-    }
-    
-    // Remove from source folder
-    if (sourceParent) {
-        const sourceName = getNameFromPath(clipboardItem.path);
-        delete sourceParent[sourceName];
-    }
-
-    // if we are pasting on the desktop, set position to moust position
+    // if we are pasting on the desktop, set position to mouse position
     if (targetPath === "/Desktop") {
         const pos = getMousePos(canvas, e);
         targetFolder[clipboardItem.name][".meta_data"].position = [
@@ -437,15 +509,6 @@ function pasteItem(e) {
             pos.y - 50
         ];
     }
-    
-    // Update local storage
-    setTree();
-    
-    // Refresh UI
-    loadDesktopIcons();
-    refreshFolderWindow(targetPath);
-    refreshFolderWindow(sourceParent[".meta_data"].path);
-    
     // Clear clipboard
     clipboardItem = null;
     hideContextMenu();
@@ -488,7 +551,7 @@ function hideContextMenu() {
 
 // Refresh folder window contents
 function refreshFolderWindow(folderPath) {
-    console.log(folderPath)
+    if (!folderPath) return;
     const folderWindow = document.querySelector(`.folder-window[data-path="${folderPath}"]`);
     if (!folderWindow) return;
 
@@ -576,8 +639,8 @@ function openAppInWindow(appName, appLink, appIcon) {
     appWindow.style.left = '100px';
     appWindow.style.top = '100px';
     appWindow.style.zIndex = 100;
-    appWindow.style.width = '400px';
-    appWindow.style.height = '300px';
+    appWindow.style.width = '800px';
+    appWindow.style.height = '600px';
     appWindow.dataset.name = appName;
     appWindow.classList.add('app-window');
     
@@ -602,6 +665,7 @@ function openAppInWindow(appName, appLink, appIcon) {
     
     document.addEventListener('mousemove', (event) => {
         if (!isDraggingWindow) return;
+        if (appWindow.style.width === '100%') return;
         appWindow.style.left = (event.clientX - offsetX) + 'px';
         appWindow.style.top = (event.clientY - offsetY) + 'px';
     });
@@ -616,10 +680,18 @@ function openAppInWindow(appName, appLink, appIcon) {
         appWindow.remove();
     });
     
-    // Minimize button
-    const minimizeButton = appWindow.querySelector('.folder-minimize');
-    minimizeButton.addEventListener('click', () => {
-        appWindow.style.display = 'none';
+    // Maximize button
+    const maximizeButton = appWindow.querySelector('.folder-maximize');
+    maximizeButton.addEventListener('click', () => {
+        if (appWindow.style.width === '100%') {
+            appWindow.style.width = '400px';
+            appWindow.style.height = '300px';
+        } else {
+            appWindow.style.width = '100%';
+            appWindow.style.height = '100%';
+            appWindow.style.left = '0';
+            appWindow.style.top = '3vh';
+        }
     });
 }
 
@@ -668,16 +740,21 @@ function openFolder(folderName, folderPath) {
         event.preventDefault();
         offsetX = event.clientX - folderWindow.getBoundingClientRect().left;
         offsetY = event.clientY - folderWindow.getBoundingClientRect().top;
-        isDraggingWindow = true;
+        isDraggingWindow = !isDraggingWindow;
     });
     
-    document.addEventListener('mousemove', (event) => {
+    folderHeader.addEventListener('mousemove', (event) => {
         if (!isDraggingWindow) return;
+        if (folderWindow.style.width === '100%') return;
         folderWindow.style.left = (event.clientX - offsetX) + 'px';
         folderWindow.style.top = (event.clientY - offsetY) + 'px';
     });
     
     folderHeader.addEventListener('mouseup', () => {
+        isDraggingWindow = false;
+    });
+
+    folderHeader.addEventListener('mouseleave', () => {
         isDraggingWindow = false;
     });
     
@@ -687,10 +764,18 @@ function openFolder(folderName, folderPath) {
         folderWindow.remove();
     });
     
-    // Minimize button
-    const minimizeButton = folderWindow.querySelector('.folder-minimize');
-    minimizeButton.addEventListener('click', () => {
-        folderWindow.style.display = 'none';
+    // Maximize button
+    const maximizeButton = folderWindow.querySelector('.folder-maximize');
+    maximizeButton.addEventListener('click', () => {
+        if (folderWindow.style.width === '100%') {
+            folderWindow.style.width = '400px';
+            folderWindow.style.height = '300px';
+        } else {
+            folderWindow.style.width = '100%';
+            folderWindow.style.height = '100%';
+            folderWindow.style.left = '0';
+            folderWindow.style.top = '3vh';
+        }
     });
     
     // Add the contents of the folder
@@ -788,12 +873,26 @@ function hideAddAppPrompt() {
     document.getElementById('addAppPrompt').style.display = 'none';
 }
 
+function addAppbtn(){
+    let name = document.getElementById('appName').value;
+    let icon = document.getElementById('appIcon').value;
+    let link = document.getElementById('appLink').value;
+    let path = current_context[".meta_data"].path;
+    addApp(name, icon, link, path);
+}
+
 function showCreateFolderPrompt() {
     document.getElementById('createFolderPrompt').style.display = 'block';
 }
 
 function hideCreateFolderPrompt() {
     document.getElementById('createFolderPrompt').style.display = 'none';
+}
+
+function createFolderbtn() {
+    let folderName = document.getElementById('folderName').value;
+    let path = current_context[".meta_data"].path;
+    createFolder(folderName, path);
 }
 
 

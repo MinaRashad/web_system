@@ -36,14 +36,14 @@
         <input type="text" id="appIcon">
         <label for="appLink">App Link:</label>
         <input type="text" id="appLink">
-        <button onclick="addApp()">Add</button>
+        <button onclick="addAppbtn();">Add</button>
         <button onclick="hideAddAppPrompt()">Cancel</button>
     </div>
 
     <div class="prompt" id="createFolderPrompt">
         <label for="folderName">Folder Name:</label>
         <input type="text" id="folderName">
-        <button onclick="createFolder()">Create</button>
+        <button onclick="createFolderbtn()">Create</button>
         <button onclick="hideCreateFolderPrompt()">Cancel</button>
     </div>
 
@@ -53,7 +53,7 @@
             <div class="folder-header">
                 <div class="folder-title">Folder Name</div>
                 <div class="folder-controls">
-                    <span class="folder-control folder-minimize">_</span>
+                    <span class="folder-control folder-maximize">[]</span>
                     <span class="folder-control folder-close">✕</span>
                 </div>
             </div>

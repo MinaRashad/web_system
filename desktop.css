@@ -52,7 +52,7 @@ body {
 #desktopCanvas {
     display: block;
     width: 100vw;
-    height: calc(100vh - 30px); /* Account for status bar */
+    height: calc(100vh - 40px); /* Account for status bar */
     background: linear-gradient(135deg, #2980b9, #6dd5fa, #ffffff);
 }
 
@@ -152,6 +152,29 @@ body {
     cursor: pointer;
     font-size: 16px;
     user-select: none;
+}
+
+.folder-maximize {
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    height: 100%;
+}
+
+.folder-maximize:hover {
+    color: white;
+    background-color: #4e6177;
+}
+
+.folder-close {
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    height: 100%;
+}
+.folder-close:hover {
+    color: white;
+    background-color: #965e4a;
 }
 
 .folder-content {
