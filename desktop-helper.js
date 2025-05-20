@@ -97,6 +97,113 @@ class DesktopIcon {
 
 // Directory tree structure functions
 
+function updateTree() {
+    // Create backup of current tree
+    const backupTree = JSON.parse(JSON.stringify(directory_tree));
+    localStorage.setItem('directory_tree_backup', JSON.stringify(backupTree));
+    
+    // Clear current tree
+    localStorage.removeItem('directory_tree');
+    
+    // Refresh page to initialize new tree
+    location.reload();
+}
+
+function resetTree() {
+    if (confirm("Are you sure you want to reset? This will delete all your files and folders.")) {
+        localStorage.removeItem('directory_tree');
+        localStorage.removeItem('directory_tree_backup');
+        location.reload();
+    }
+}
+
+function exportTree() {
+    const treeData = JSON.stringify(directory_tree, null, 2);
+    const blob = new Blob([treeData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'desktop_tree_backup.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importTree() {
+    document.getElementById('importInput').click();
+}
+
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedTree = JSON.parse(e.target.result);
+            
+            merged_tree = mergeDirectoryTrees(directory_tree, importedTree)
+
+            directory_tree = merged_tree;
+            setTree();
+            
+            // Reload desktop
+            loadDesktopIcons();
+            refreshOpenedWindows();
+            
+            alert("Tree imported successfully!");
+        } catch (error) {
+            alert("Error importing tree: " + error.message);
+        }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input
+    event.target.value = '';
+}
+
+// Function to merge trees, giving priority to backup for files
+function mergeDirectoryTrees(currentTree, backupTree) {
+    // Start with the current tree
+    const mergedTree = JSON.parse(JSON.stringify(currentTree));
+    
+    // Recursively merge folders and files
+    function mergeNodes(current, backup, path) {
+        // Process all items in backup
+        Object.keys(backup).forEach(key => {
+            // Skip metadata
+            if (key === ".meta_data") return;
+            
+            const backupItem = backup[key];
+            
+            // If item doesn't exist in current tree, add it
+            if (!current[key]) {
+                current[key] = JSON.parse(JSON.stringify(backupItem));
+                return;
+            }
+            
+            // If both are folders, merge their contents
+            if (current[key][".meta_data"].type === "folder" && 
+                backupItem[".meta_data"].type === "folder") {
+                mergeNodes(current[key], backupItem, path + "/" + key);
+            } 
+            // If both are files, prioritize backup
+            else if (current[key][".meta_data"].type === "file" && 
+                     backupItem[".meta_data"].type === "file") {
+                current[key] = JSON.parse(JSON.stringify(backupItem));
+            }
+        });
+    }
+    
+    // Start merging from root
+    mergeNodes(mergedTree, backupTree, "");
+    
+    return mergedTree;
+}
+
+
 function create_initial_tree() {
     directory_tree = {
         "Desktop": {
@@ -132,6 +239,7 @@ function create_initial_tree() {
         { name: "Journal", link: "https://minarashad.github.io/AI-therapist/", icon: "📓" },
         { name: "Clock", link: "./default_apps/clock.html", icon: "🕒" },
         { name: "Ladder", link: "./default_apps/ladder.html", icon: "🪜" }
+
     ];
 
     defaultIcons.forEach(icon => {
@@ -148,6 +256,42 @@ function create_initial_tree() {
             }
         };
     });
+
+    // Add Developer and Terminal apps directly to the desktop
+    directory_tree["Desktop"]["Developer"] = {
+        ".meta_data": {
+            "path": "/Desktop/Developer",
+            "type": "file",
+            "link": "./default_apps/developer.html",
+            "icon": "👨‍💻",
+            "position": [
+                Math.floor(50),
+                Math.floor(50)
+            ]
+        }
+    };
+
+    directory_tree["Desktop"]["Terminal"] = {
+        ".meta_data": {
+            "path": "/Desktop/Terminal",
+            "type": "file",
+            "link": "./default_apps/terminal.html",
+            "icon": "🖥️",
+            "position": [
+                Math.floor(150),
+                Math.floor(50)
+            ]
+        }
+    };
+
+    // Check for backup and merge if exists
+    const backupTree = JSON.parse(localStorage.getItem('directory_tree_backup'));
+    if (backupTree) {
+        directory_tree = mergeDirectoryTrees(directory_tree, backupTree);
+
+        // remove back up
+        localStorage.removeItem('directory_tree_backup')
+    }
 
     localStorage.setItem('directory_tree', JSON.stringify(directory_tree));    
 }
@@ -315,8 +459,14 @@ function addApp(name, icon, link, currentPath) {
     
     pos = getMousePos(canvas, event);
 
+    if(!pos.x) pos.x = Math.floor(Math.random() * (canvas.width - 100));
+    if(!pos.y) pos.y = Math.floor(Math.random() * (canvas.width - 100));
+
+    
+
+
     // Add the new app
-    current_context[name] = {
+    context[name] = {
         ".meta_data": {
             "path": `${currentPath}/${name}`,
             "type": "file",
@@ -608,6 +758,14 @@ function refreshFolderWindow(folderPath) {
     });
 }
 
+function refreshOpenedWindows() {
+    const windows = document.querySelectorAll('.folder-window');
+    windows.forEach(window => {
+        const folderPath = window.dataset.path;
+        refreshFolderWindow(folderPath);
+    });
+}
+
 // interactive functions
 
 // Handle double click on icon in desktop
@@ -622,6 +780,13 @@ function handleDoubleClick(icon) {
 
 
 // windows
+
+function openInTerminal() {
+    // Get the current context path
+    const currentPath = current_context[".meta_data"].path;
+    const app_path = `./default_apps/terminal.html?path=${currentPath}`;
+    openAppInWindow("Terminal", app_path, "🖥️");
+}
 
 // Open app in window instead of redirecting
 function openAppInWindow(appName, appLink, appIcon) {
@@ -662,15 +827,26 @@ function openAppInWindow(appName, appLink, appIcon) {
         offsetY = event.clientY - appWindow.getBoundingClientRect().top;
         isDraggingWindow = true;
     });
+
+    window.addEventListener('mouseleave', ()=>{
+        isDraggingWindow = false;
+    })
     
+    // Move the mousemove event to document level
     document.addEventListener('mousemove', (event) => {
         if (!isDraggingWindow) return;
         if (appWindow.style.width === '100%') return;
         appWindow.style.left = (event.clientX - offsetX) + 'px';
         appWindow.style.top = (event.clientY - offsetY) + 'px';
+
+        pos = getMousePos(canvas, event);
+        if(!pos.x || !pos.y) isDraggingWindow = false;
+        if(pos.x < 0 || pos.y < 0 || pos.x > canvas.width || pos.y > canvas.height)
+            isDraggingWindow = false
     });
     
-    appHeader.addEventListener('mouseup', () => {
+    // Move the mouseup event to document level
+    document.addEventListener('mouseup', () => {
         isDraggingWindow = false;
     });
     
@@ -740,17 +916,19 @@ function openFolder(folderName, folderPath) {
         event.preventDefault();
         offsetX = event.clientX - folderWindow.getBoundingClientRect().left;
         offsetY = event.clientY - folderWindow.getBoundingClientRect().top;
-        isDraggingWindow = !isDraggingWindow;
+        isDraggingWindow = true;
     });
     
-    folderHeader.addEventListener('mousemove', (event) => {
+    // Move the mousemove event to document level
+    document.addEventListener('mousemove', (event) => {
         if (!isDraggingWindow) return;
         if (folderWindow.style.width === '100%') return;
         folderWindow.style.left = (event.clientX - offsetX) + 'px';
         folderWindow.style.top = (event.clientY - offsetY) + 'px';
     });
     
-    folderHeader.addEventListener('mouseup', () => {
+    // Move the mouseup event to document level
+    document.addEventListener('mouseup', () => {
         isDraggingWindow = false;
     });
 
@@ -918,7 +1096,7 @@ function loadDesktopIcons() {
         
         const item = directory_tree["Desktop"][key];
         const metadata = item[".meta_data"];
-        
+        console.log(key, metadata)
         if (metadata) {
             desktopIcons.push(new DesktopIcon(
                 key,

@@ -7,6 +7,13 @@
 </head>
 <body>
     <div class="status-bar">
+        <div class="status-buttons">
+            <button class="status-button" onclick="updateTree()">Update</button>
+            <button class="status-button" onclick="resetTree()">Reset</button>
+            <button class="status-button" onclick="exportTree()">Export</button>
+            <button class="status-button" onclick="importTree()">Import</button>
+            <input type="file" id="importInput" style="display: none;" accept=".json" onchange="handleImportFile(event)">
+        </div>
         <div class="time" id="time"></div>
         <div class="battery">
             <span class="battery-text">100%</span>
@@ -20,14 +27,15 @@
     <!-- Replace desktop div with canvas -->
     <canvas id="desktopCanvas"></canvas>
 
-    <div class="context-menu" id="contextMenu">
-        <button onclick="location.reload()">Refresh</button>
-        <button onclick="showAddAppPrompt()">Add App</button> 
-        <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
-        <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
-        <button id="pasteButton" onclick="pasteItem(event)" style="display:none;">Paste</button>
-        <button onclick="showCreateFolderPrompt()">Create Folder</button>
-    </div>
+<div class="context-menu" id="contextMenu">
+    <button onclick="location.reload()">Refresh</button>
+    <button onclick="showAddAppPrompt()">Add App</button> 
+    <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
+    <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
+    <button id="pasteButton" onclick="pasteItem(event)" style="display:none;">Paste</button>
+    <button onclick="showCreateFolderPrompt()">Create Folder</button>
+    <button id="openInTerminalButton" onclick="openInTerminal()">Open in Terminal</button>
+</div>
 
     <div class="prompt" id="addAppPrompt">
         <label for="appName">App Name:</label>

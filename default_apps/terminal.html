@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Terminal</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #terminal {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        #input-line {
+            display: flex;
+            padding: 5px 10px;
+            background-color: #000;
+            border-top: 1px solid #333;
+        }
+        #prompt {
+            color: #0f0;
+            margin-right: 5px;
+        }
+        #command-input {
+            flex: 1;
+            background-color: transparent;
+            border: none;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        .output {
+            margin-bottom: 10px;
+        }
+        .command {
+            color: #0f0;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <div id="input-line">
+        <span id="prompt">user@os:/Desktop$</span>
+        <input type="text" id="command-input" autofocus>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const commandInput = document.getElementById('command-input');
+        const prompt = document.getElementById('prompt');
+        
+        // Current working directory
+        // `./default_apps/terminal.html?path=${currentPath}`
+        let currentPath = window.location.search.split('=')[1] || '/Desktop';
+        
+        // turn url encoding to normal string
+        currentPath = decodeURIComponent(currentPath);
+        
+        // Initialize terminal
+        function initTerminal() {
+            appendOutput('Welcome to OS Terminal v1.0', 'success');
+            appendOutput('Type "help" for available commands.', 'success');
+            updatePrompt();
+        }
+        
+        // Append output to terminal
+        function appendOutput(text, className = '') {
+            const output = document.createElement('div');
+            output.className = `output ${className}`;
+            output.textContent = text;
+            terminal.appendChild(output);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        // Append command to terminal
+        function appendCommand(command) {
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'output command';
+            cmdLine.textContent = `${prompt.textContent} ${command}`;
+            terminal.appendChild(cmdLine);
+        }
+        
+        // Update prompt with current directory
+        function updatePrompt() {
+            prompt.textContent = `user@os:${currentPath}$`;
+        }
+        
+        // Execute command
+        function executeCommand(command) {
+            appendCommand(command);
+            
+            const args = command.trim().split(' ');
+            const cmd = args[0].toLowerCase();
+            
+            switch (cmd) {
+                case 'help':
+                    showHelp();
+                    break;
+                case 'ls':
+                    listDirectory(args[1]);
+                    break;
+                case 'pwd':
+                    appendOutput(currentPath);
+                    break;
+                case 'clear':
+                    terminal.innerHTML = '';
+                    break;
+                case 'tree':
+                    showTree(args[1]);
+                    break;
+                case 'rm':
+                    if (args[1]) {
+                        send_function_command(`deleteByPath("${args[1]}")`);
+                    } else {
+                        appendOutput('rm: missing operand', 'error');
+                    }
+                    break;
+                case 'cp':
+                    if (args[1] && args[2]) {
+                        send_function_command(`copyByPath("${args[1]}", "${args[2]}")`);
+                    } else {
+                        appendOutput('cp: missing operand', 'error');
+                    }
+                    break;
+                case 'mv':
+                    if (args[1] && args[2]) {
+                        send_function_command(`moveByPath("${args[1]}", "${args[2]}")`);
+                    } else {
+                        appendOutput('mv: missing operand', 'error');
+                    }
+                    break;
+                case '':
+                    // Empty command, do nothing
+                    break;
+                default:
+                    appendOutput(`Command not found: ${cmd}`, 'error');
+            }
+        }
+        
+        // Show help
+        function showHelp() {
+            const helpText = `
+Available commands:
+  help                Show this help message
+  ls [path]           List directory contents
+  pwd                 Print working directory
+  clear               Clear the terminal
+  tree                Display directory tree
+  rm [path]           Remove file or directory
+  cp [path1] [path2]  Copy file or directory
+  mv [path1] [path2]  Move or rename file or directory
+
+`;
+            appendOutput(helpText);
+        }
+        
+        // List directory contents
+        function listDirectory(path) {
+            window.parent.postMessage({ action: 'listDirectory', path: path || currentPath }, '*');
+            
+            let ls = (event) => {
+                let directory_obj = null;
+                if (event.data) {
+                    directory_obj = event.data.directory;
+                }
+                if (directory_obj) {
+                    const items = Object.keys(directory_obj).filter(key => key !== '.meta_data').sort();
+                    output = ``;
+                    for(let item of items){
+                        const type = directory_obj[item]['.meta_data']?.type;
+                        const icon = directory_obj[item]['.meta_data']?.icon || (type === 'folder' ? '📁' : '📄');
+                        output += `${item}${type === 'folder' ? '\tfolder' : '\t file'}\n`;
+                    }
+                    appendOutput(output.trim());
+                    if (items.length === 0) {
+                        appendOutput('No files or directories found.');
+                    }
+
+                    appendOutput(`Total: ${items.length} items`);
+                } else {
+                    appendOutput(`ls: cannot access '${path}': No such file or directory`, 'error');
+                }
+
+                // Clear the event listener after processing
+                window.removeEventListener('message', ls);
+            }
+
+            window.addEventListener('message', ls);
+        }
+          
+        // Show directory tree
+        function showTree() {
+            
+            // first send message to parent window
+            window.parent.postMessage({
+                action: 'getTree'
+            }, '*');
+
+            let tree = (event) => {
+                console.log("I got a response", event)
+                let directory_obj = null;
+                if (event.data && event.data.action === 'getTree') {
+                    directory_obj = event.data.tree;
+                }
+                if (directory_obj) {
+                    buildTree(directory_obj);
+                }
+
+
+                // Clear the event listener after processing
+                window.removeEventListener('message', tree);
+            }
+            
+            function buildTree(dir, prefix = '', isLast = true) {
+                const items = Object.keys(dir).filter(key => key !== '.meta_data').sort();
+                let output = '';
+                items.forEach((item, index) => {
+                    const isLastItem = index === items.length - 1;
+                    const itemPrefix = prefix + (isLast ? '    ' : '│   ');
+                    const linePrefix = prefix + (isLast ? '└── ' : '├── ');
+                    
+                    const type = dir[item]['.meta_data']?.type;
+                    const icon = dir[item]['.meta_data']?.icon || (type === 'folder' ? '📁' : '📄');
+                    appendOutput(`${linePrefix}${icon} ${item}${type === 'folder' ? '/' : ''}\n`);
+                    if (type === 'folder') {
+                        buildTree(dir[item], itemPrefix, isLastItem);
+                    }
+
+                });
+            }
+        
+            window.addEventListener('message', tree);
+        }
+        
+        function send_function_command(command) {
+            window.parent.postMessage({
+                action: 'command',
+                command: command
+            }, '*');
+        }
+        
+        // Handle command input
+        commandInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const command = commandInput.value;
+                commandInput.value = '';
+                executeCommand(command);
+            }
+        });
+        
+        // Initialize terminal on load
+        window.addEventListener('load', initTerminal);
+        
+        
+
+    </script>
+</body>
+</html>

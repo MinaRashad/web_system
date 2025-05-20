@@ -20,7 +20,7 @@ body {
 
 .time {
     font-size: 14px;
-    position: relative;
+    position: absolute;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -270,4 +270,24 @@ iframe {
 
 .error-window button:hover {
     background-color: #f0f0f0;
+}
+
+.status-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.status-button {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.status-button:hover {
+    background-color: #444;
 }

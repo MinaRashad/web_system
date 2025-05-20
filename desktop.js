@@ -130,7 +130,7 @@ canvas.addEventListener('contextmenu', (e) => {
         // Show cut button
         document.getElementById('cutButton').style.display = 'block';
         // Show delete button
-        deleteButton.style.display = 'block';   
+        deleteButton.style.display = 'block';
     } else {
         deleteButton.style.display = 'none';
         document.getElementById('cutButton').style.display = 'none';
@@ -187,6 +187,53 @@ document.addEventListener('click', () => {
 function setTree() {
     localStorage.setItem('directory_tree', JSON.stringify(directory_tree));
 }
+
+window.addEventListener('message', (event) => {
+    console.log("Received message:", event.data);
+    if (event.data.action === 'getTree'){
+        console.log(event.source, event.origin)
+        event.source.postMessage({
+            action: 'getTree',
+            tree: directory_tree
+        }, "*");
+    }
+    if (event.data.action === 'setTree'){
+        directory_tree = event.data.tree;
+        setTree();
+        loadDesktopIcons();
+        refreshOpenedWindows();
+    }
+    if( event.data.action === 'command'){
+        const command = event.data.command
+        // command is a single line
+        eval(command)
+    }
+    if (event.data.action === 'createApp'){
+        const name = event.data.appName;
+        const icon = event.data.appIcon;
+        const link = event.data.dataUrl;
+        const target_path = event.data.target_path;
+
+        console.log("Creating app:", name, icon, link, target_path);
+        addApp(name, icon, link, target_path);
+
+    }
+
+    if (event.data.action === 'listDirectory'){
+        let path = event.data.path;
+        let directory = getObjectByPath(path);
+        console.log(event.source, event.origin)
+        event.source.postMessage({
+            action: 'listDirectoy',
+            directory: directory
+        }, '*');
+    }
+
+    setTree();
+    loadDesktopIcons();
+    // reload opened windows
+    refreshOpenedWindows();
+});
 
 // Initialize
 loadDesktopIcons();
