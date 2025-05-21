@@ -27,15 +27,16 @@
     <!-- Replace desktop div with canvas -->
     <canvas id="desktopCanvas"></canvas>
 
-<div class="context-menu" id="contextMenu">
-    <button onclick="location.reload()">Refresh</button>
-    <button onclick="showAddAppPrompt()">Add App</button> 
-    <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
-    <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
-    <button id="pasteButton" onclick="pasteItem(event)" style="display:none;">Paste</button>
-    <button onclick="showCreateFolderPrompt()">Create Folder</button>
-    <button id="openInTerminalButton" onclick="openInTerminal()">Open in Terminal</button>
-</div>
+    <div class="context-menu" id="contextMenu">
+        <button onclick="location.reload()">Refresh</button>
+        <button onclick="showAddAppPrompt()">Add App</button> 
+        <button id="editAppButton" onclick="showEditAppPrompt()" style="display:none;">Edit</button>
+        <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
+        <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
+        <button id="pasteButton" onclick="pasteItem(event)" style="display:none;">Paste</button>
+        <button onclick="showCreateFolderPrompt()">Create Folder</button>
+        <button id="openInTerminalButton" onclick="openInTerminal()">Open in Terminal</button>
+    </div>
 
     <div class="prompt" id="addAppPrompt">
         <label for="appName">App Name:</label>
@@ -53,6 +54,19 @@
         <input type="text" id="folderName">
         <button onclick="createFolderbtn()">Create</button>
         <button onclick="hideCreateFolderPrompt()">Cancel</button>
+    </div>
+
+    <div class="prompt" id="editAppPrompt">
+        <label for="editAppName">App Name:</label>
+        <input type="text" id="editAppName">
+        <label for="editAppIcon">App Icon:</label>
+        <input type="text" id="editAppIcon">
+        <label for="editAppLink">App Link:</label>
+        <input type="text" id="editAppLink">
+        <button onclick="saveEditApp();">Save</button>
+        <button onclick="hideEditAppPrompt()">Cancel</button>
+        <!-- if base64, open in developer -->
+        <button id="openInDevBtn" onclick="openInDev()">Open in Developer</button>
     </div>
 
     <!-- Template for folder windows -->

@@ -113,8 +113,6 @@ canvas.addEventListener('contextmenu', (e) => {
         if (desktopIcons[i].isPointInside(pos.x, pos.y)) {
             targetedIcon = desktopIcons[i];
             clickedOnIcon = true;
-            
-            // set current_context to desktop
             break;
         }
     }
@@ -124,16 +122,23 @@ canvas.addEventListener('contextmenu', (e) => {
     contextMenu.style.left = e.clientX + 'px';
     contextMenu.style.top = e.clientY + 'px';
     
-    // Show/hide delete button
+    // Show/hide buttons based on context
     const deleteButton = document.getElementById('deleteAppButton');
-    if (clickedOnIcon) {        
-        // Show cut button
-        document.getElementById('cutButton').style.display = 'block';
-        // Show delete button
+    const editButton = document.getElementById('editAppButton');
+    const cutButton = document.getElementById('cutButton');
+    
+    if (clickedOnIcon) {
+        if (targetedIcon.type === "file") {
+            editButton.style.display = 'block';
+        } else {
+            editButton.style.display = 'none';
+        }
+        cutButton.style.display = 'block';
         deleteButton.style.display = 'block';
     } else {
+        editButton.style.display = 'none';
         deleteButton.style.display = 'none';
-        document.getElementById('cutButton').style.display = 'none';
+        cutButton.style.display = 'none';
     }
     
     // Show/hide paste button based on clipboard content
@@ -150,7 +155,6 @@ document.addEventListener('contextmenu', (e) => {
         // Check if clicked on a file icon
         const fileIcon = e.target.closest('.file-icon');
         if (fileIcon) {
-            console.log("Clicked on file icon:", fileIcon);
             targetedIcon = {
                 name: fileIcon.dataset.name,
                 link: fileIcon.dataset.link,
@@ -158,11 +162,20 @@ document.addEventListener('contextmenu', (e) => {
                 icon: fileIcon.dataset.icon,
                 type: fileIcon.dataset.type || "file"
             };
+            
             document.getElementById('cutButton').style.display = 'block';
             document.getElementById('deleteAppButton').style.display = 'block';
+            
+            // Show edit button only for files
+            if (targetedIcon.type === "file") {
+                document.getElementById('editAppButton').style.display = 'block';
+            } else {
+                document.getElementById('editAppButton').style.display = 'none';
+            }
         } else {
             document.getElementById('cutButton').style.display = 'none';
             document.getElementById('deleteAppButton').style.display = 'none';
+            document.getElementById('editAppButton').style.display = 'none';
         }
         
         // Show context menu

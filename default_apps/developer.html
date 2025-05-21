@@ -81,7 +81,13 @@
             margin-left: 10px;
             display: none;
         }
+        .error-message {
+            color: #ff4444;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
+    
 </head>
 <body>
     <div class="toolbar">
@@ -126,6 +132,8 @@
         </div>
     </div>
 
+    <div id="errorMessage" class="error-message">Please enter an app name</div>
+
     <script>
         const codeEditor = document.getElementById('codeEditor');
         const preview = document.getElementById('preview');
@@ -133,6 +141,24 @@
         const appNameInput = document.getElementById('appName');
         const appIconInput = document.getElementById('appIcon');
         const statusElement = document.getElementById('status');
+
+        // if there is ? in the url, parse argument
+        if(window.location.search){
+            const urlParams = new URLSearchParams(window.location.search);
+            const appName = urlParams.get('name');
+            const appIcon = urlParams.get('icon');
+            const appLink = urlParams.get('link');
+            if(appName){
+                appNameInput.value = appName;
+            }
+            if(appIcon){
+                appIconInput.value = appIcon;
+            }
+            if(appLink){
+                let code = appLink.split('data:text/html;charset=utf-8,')[1];
+                codeEditor.value = code;
+            }
+        }
 
         // Update preview in real-time
         function updatePreview() {
@@ -154,7 +180,10 @@
             const htmlCode = codeEditor.value;
             
             if (!appName) {
-                alert('Please enter an app name');
+                document.getElementById('errorMessage').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('errorMessage').style.display = 'none';
+                }, 3000);
                 return;
             }
             

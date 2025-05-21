@@ -110,11 +110,13 @@ function updateTree() {
 }
 
 function resetTree() {
-    if (confirm("Are you sure you want to reset? This will delete all your files and folders.")) {
-        localStorage.removeItem('directory_tree');
-        localStorage.removeItem('directory_tree_backup');
-        location.reload();
-    }
+    showConfirmation("Are you sure you want to reset? This will delete all your files and folders.",
+        function() {
+            localStorage.removeItem('directory_tree');
+            localStorage.removeItem('directory_tree_backup');
+            location.reload();
+        }
+    );
 }
 
 function exportTree() {
@@ -133,35 +135,6 @@ function exportTree() {
 
 function importTree() {
     document.getElementById('importInput').click();
-}
-
-function handleImportFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedTree = JSON.parse(e.target.result);
-            
-            merged_tree = mergeDirectoryTrees(directory_tree, importedTree)
-
-            directory_tree = merged_tree;
-            setTree();
-            
-            // Reload desktop
-            loadDesktopIcons();
-            refreshOpenedWindows();
-            
-            alert("Tree imported successfully!");
-        } catch (error) {
-            alert("Error importing tree: " + error.message);
-        }
-    };
-    reader.readAsText(file);
-    
-    // Reset the input
-    event.target.value = '';
 }
 
 // Function to merge trees, giving priority to backup for files
@@ -380,7 +353,6 @@ function copyByPath(itemPath, targetPath) {
 
     if (target['.meta_data'].type !== "folder") {
         showError(`${targetPath} is not a folder.`);
-        console.log()
         return false;
     };
 
@@ -416,6 +388,40 @@ function moveByPath(itemPath, targetPath) {
     if(copyByPath(itemPath, targetPath))
     {
         deleteByPath(itemPath);
+    }
+}
+
+function updateItemByPath(itemPath, newItemProperties) {
+    const item = getObjectByPath(itemPath);
+    if (!item) return;
+
+    // Update the item's properties
+    Object.keys(newItemProperties).forEach(key => {
+        if (key !== ".meta_data") {
+            item['.meta_data'][key] = newItemProperties[key] || item[key];
+        }
+    });
+
+    // update path
+    let parent = getParentByPath(itemPath);
+    const itemName = getNameFromPath(itemPath);
+    const newPath = `${parent[".meta_data"].path}/${itemName}`;
+    item['.meta_data'].path = newPath;
+
+    // change key
+    delete parent[itemName];
+    parent[newItemProperties.name] = item;
+
+    // Update local storage
+    setTree();
+    
+    // Refresh UI
+    loadDesktopIcons();
+    
+    // Refresh folder window if in a folder
+    parent = getParentByPath(itemPath);
+    if (parent && parent[".meta_data"].path !== "/Desktop") {
+        refreshFolderWindow(parent[".meta_data"].path);
     }
 }
 
@@ -614,7 +620,6 @@ function cutItem() {
             path: item[".meta_data"].path,
         };
 
-        console.log(clipboardItem)
         
         hideContextMenu();
     }
@@ -786,6 +791,24 @@ function openInTerminal() {
     const currentPath = current_context[".meta_data"].path;
     const app_path = `./default_apps/terminal.html?path=${currentPath}`;
     openAppInWindow("Terminal", app_path, "🖥️");
+}
+
+function openInDev(){
+    // Get the current context path
+    const newName = document.getElementById('editAppName').value || 'New app';
+    const newIcon = document.getElementById('editAppIcon').value || '📄';
+    const newLink = document.getElementById('editAppLink').value ;
+    const current_app_path = current_context[".meta_data"].path + "/" + targetedIcon.name;
+    
+    const dev_path = `./default_apps/developer.html?name=${newName}&icon=${newIcon}&link=${newLink}`;
+    hideEditAppPrompt();
+    openAppInWindow("Developer", dev_path, "👨‍💻");
+
+    // ask if they want to delete the original app
+    showConfirmation("Do you want to delete the original app?", ()=>{
+        console.log(current_app_path)
+        deleteByPath(current_app_path);
+    })
 }
 
 // Open app in window instead of redirecting
@@ -1073,6 +1096,196 @@ function createFolderbtn() {
     createFolder(folderName, path);
 }
 
+function showEditAppPrompt() {
+    if (!targetedIcon || targetedIcon.type !== "file") return;
+    
+    // Get the current item's data
+    const itemPath = current_context[".meta_data"].path + "/" + targetedIcon.name;
+    const item = getObjectByPath(itemPath);
+    
+    if (!item) return;
+    
+    const metadata = item[".meta_data"];
+    
+    // Fill the form with current values
+    document.getElementById('editAppName').value = targetedIcon.name;
+    document.getElementById('editAppIcon').value = metadata.icon || "📄";
+    document.getElementById('editAppLink').value = metadata.link || "";
+    
+    document.getElementById('editAppPrompt').style.display = 'block';
+
+    if(metadata.link.startsWith("data:text/html;")) {
+        document.getElementById('openInDevBtn').style.display = 'block';
+    }
+    else{
+        document.getElementById('openInDevBtn').style.display = 'none';
+    }
+}
+
+function hideEditAppPrompt() {
+    document.getElementById('editAppPrompt').style.display = 'none';
+}
+
+function saveEditApp() {
+    if (!targetedIcon || targetedIcon.type !== "file") return;
+    
+    const newName = document.getElementById('editAppName').value;
+    const newIcon = document.getElementById('editAppIcon').value;
+    const newLink = document.getElementById('editAppLink').value;
+    
+    properties = {
+        name: newName,
+        icon: newIcon,
+        link: newLink
+    }
+    if (!is_valid_name(newName)) {
+        showError("Invalid app name.");
+        return;
+    }
+    
+    const itemPath = current_context[".meta_data"].path + "/" + targetedIcon.name;
+
+    updateItemByPath(itemPath, properties);
+
+    hideEditAppPrompt();
+
+}
+
+// Add showInfo function for non-error messages
+function showInfo(message) {
+    // Create info window (similar to error but with different styling)
+    const infoWindow = document.createElement('div');
+    infoWindow.className = 'info-window';
+    infoWindow.style.position = 'absolute';
+    infoWindow.style.top = '50%';
+    infoWindow.style.left = '50%';
+    infoWindow.style.transform = 'translate(-50%, -50%)';
+    infoWindow.style.backgroundColor = '#2196F3';
+    infoWindow.style.color = 'white';
+    infoWindow.style.padding = '20px';
+    infoWindow.style.borderRadius = '5px';
+    infoWindow.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    infoWindow.style.zIndex = '2000';
+    
+    // Add message
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = message;
+    infoWindow.appendChild(messageDiv);
+    
+    // Add close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'OK';
+    closeButton.style.marginTop = '15px';
+    closeButton.style.padding = '5px 15px';
+    closeButton.style.backgroundColor = 'white';
+    closeButton.style.color = 'black';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '3px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => infoWindow.remove();
+    infoWindow.appendChild(closeButton);
+    
+    // Add to body
+    document.body.appendChild(infoWindow);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(infoWindow)) {
+            infoWindow.remove();
+        }
+    }, 5000);
+}
+
+// Add confirmation dialog
+function showConfirmation(message, onConfirm) {
+    // Create confirmation window
+    const confirmWindow = document.createElement('div');
+    confirmWindow.className = 'confirm-window';
+    confirmWindow.style.position = 'absolute';
+    confirmWindow.style.top = '50%';
+    confirmWindow.style.left = '50%';
+    confirmWindow.style.transform = 'translate(-50%, -50%)';
+    confirmWindow.style.backgroundColor = '#333';
+    confirmWindow.style.color = 'white';
+    confirmWindow.style.padding = '20px';
+    confirmWindow.style.borderRadius = '5px';
+    confirmWindow.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    confirmWindow.style.zIndex = '2000';
+    
+    // Add message
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = message;
+    confirmWindow.appendChild(messageDiv);
+    
+    // Add buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '15px';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.style.gap = '10px';
+    
+    const confirmButton = document.createElement('button');
+    confirmButton.textContent = 'Yes';
+    confirmButton.style.padding = '5px 15px';
+    confirmButton.style.backgroundColor = '#4CAF50';
+    confirmButton.style.color = 'white';
+    confirmButton.style.border = 'none';
+    confirmButton.style.borderRadius = '3px';
+    confirmButton.style.cursor = 'pointer';
+    confirmButton.onclick = () => {
+        if (onConfirm) onConfirm();
+        confirmWindow.remove();
+    };
+    
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'No';
+    cancelButton.style.padding = '5px 15px';
+    cancelButton.style.backgroundColor = '#f44336';
+    cancelButton.style.color = 'white';
+    cancelButton.style.border = 'none';
+    cancelButton.style.borderRadius = '3px';
+    cancelButton.style.cursor = 'pointer';
+    cancelButton.onclick = () => confirmWindow.remove();
+    
+    buttonContainer.appendChild(cancelButton);
+    buttonContainer.appendChild(confirmButton);
+    confirmWindow.appendChild(buttonContainer);
+    
+    // Add to body
+    document.body.appendChild(confirmWindow);
+}
+
+
+
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedTree = JSON.parse(e.target.result);
+            
+            merged_tree = mergeDirectoryTrees(directory_tree, importedTree)
+
+            directory_tree = merged_tree;
+            setTree();
+            
+            // Reload desktop
+            loadDesktopIcons();
+            refreshOpenedWindows();
+            
+            showInfo("Tree imported successfully!");
+        } catch (error) {
+            showError("Error importing tree: " + error.message);
+        }
+    };
+    reader.readAsText(file);
+    
+    // Reset the input
+    event.target.value = '';
+}
+
 
 // desktop
 // Update icon position in directory tree
@@ -1096,7 +1309,6 @@ function loadDesktopIcons() {
         
         const item = directory_tree["Desktop"][key];
         const metadata = item[".meta_data"];
-        console.log(key, metadata)
         if (metadata) {
             desktopIcons.push(new DesktopIcon(
                 key,
