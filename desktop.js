@@ -242,6 +242,18 @@ window.addEventListener('message', (event) => {
         }, '*');
     }
 
+    if (event.data.action === 'closeWindow') {
+        // Find the app window that sent this message
+        const appWindows = document.querySelectorAll('.app-window');
+        for (const window of appWindows) {
+            if (window.querySelector('iframe') && 
+                window.querySelector('iframe').contentWindow === event.source) {
+                window.remove();
+                break;
+            }
+        }
+    }
+
     setTree();
     loadDesktopIcons();
     // reload opened windows

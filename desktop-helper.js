@@ -257,6 +257,32 @@ function create_initial_tree() {
         }
     };
 
+    directory_tree["Desktop"]["Portfolio"] = {
+        ".meta_data": {
+            "path": "/Desktop/Portfolio",
+            "type": "file",
+            "link": "./default_apps/portfolio.html",
+            "icon": "📋",
+            "position": [
+                Math.floor(250),
+                Math.floor(50)
+            ]
+        }
+    };
+
+    directory_tree["Desktop"]["Service Ping"] = {
+        ".meta_data": {
+            "path": "/Desktop/Service Ping",
+            "type": "file",
+            "link": "./default_apps/service-ping.html",
+            "icon": "📡",
+            "position": [
+                Math.floor(350),
+                Math.floor(50)
+            ]
+        }
+    };
+
     // Check for backup and merge if exists
     const backupTree = JSON.parse(localStorage.getItem('directory_tree_backup'));
     if (backupTree) {

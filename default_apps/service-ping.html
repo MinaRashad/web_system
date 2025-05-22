@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Ping</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #terminal {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        #input-line {
+            display: flex;
+            padding: 5px 10px;
+            background-color: #000;
+            border-top: 1px solid #333;
+        }
+        #prompt {
+            color: #0f0;
+            margin-right: 5px;
+        }
+        #command-input {
+            flex: 1;
+            background-color: transparent;
+            border: none;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        .output {
+            margin-bottom: 10px;
+        }
+        .command {
+            color: #0f0;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0ff;
+        }
+        .warning {
+            color: #ff0;
+        }
+        .service {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            height: 10vh;
+        }
+        .service:hover {
+            background-color: #222;
+        }
+        .service-name {
+            flex: 1;
+        }
+        .service-url {
+            flex: 2;
+        }
+        .service-status {
+            flex: 1;
+            text-align: center;
+            margin-left: 10px;
+        }
+        .service-actions {
+            flex: 1;
+            text-align: right;
+            display: flex;
+        }
+        .status-up {
+            color: #0f0;
+        }
+        .status-down {
+            color: #f00;
+        }
+        .status-unknown {
+            color: #ff0;
+        }
+        .toolbar {
+            display: flex;
+            padding: 5px;
+            background-color: #222;
+            border-bottom: 1px solid #333;
+        }
+        button {
+            background-color: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #222;
+            border: 1px solid #0f0;
+            padding: 20px;
+            z-index: 100;
+        }
+        .modal input {
+            background-color: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px;
+            width: 100%;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        #terminal-log {
+            max-height: 200px;
+            overflow-y: hidden;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button id="add-service">Add Service</button>
+        <button id="ping-all">Ping All</button>
+        <button id="clear">Clear Log</button>
+    </div>
+    <div id="terminal">
+        <div class="output success">Service Ping Monitor v1.0</div>
+        <div class="output">Add services to monitor and check their status.</div>
+        <div id="services-list"></div>
+        <div id="terminal-log"></div>
+    </div>
+    
+    <div id="add-modal" class="modal">
+        <h3 style="color: #0f0; margin-top: 0;">Add Service</h3>
+        <input type="text" id="service-name" placeholder="Service Name">
+        <input type="text" id="service-url" placeholder="URL (e.g., https://example.com)">
+        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+            <button id="cancel-add">Cancel</button>
+            <button id="confirm-add">Add</button>
+        </div>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const servicesList = document.getElementById('services-list');
+        const addServiceBtn = document.getElementById('add-service');
+        const pingAllBtn = document.getElementById('ping-all');
+        const clearBtn = document.getElementById('clear');
+        const addModal = document.getElementById('add-modal');
+        const serviceNameInput = document.getElementById('service-name');
+        const serviceUrlInput = document.getElementById('service-url');
+        const cancelAddBtn = document.getElementById('cancel-add');
+        const confirmAddBtn = document.getElementById('confirm-add');
+        const terminal_log = document.getElementById('terminal-log');
+        
+        // Load services from localStorage
+        let services = JSON.parse(localStorage.getItem('pingServices')) || [];
+        
+        // Initialize
+        function init() {
+            renderServicesList();
+            appendOutput('System initialized. Ready to monitor services.', 'success');
+        }
+        
+        // Append output to terminal
+        function appendOutput(text, className = '') {
+            const output = document.createElement('div');
+            output.className = `output ${className}`;
+            output.textContent = text;
+            terminal_log.appendChild(output);
+            terminal_log.scrollTop = terminal_log.scrollHeight; // Scroll to bottom
+        }
+        
+        // Render services list
+        function renderServicesList() {
+            servicesList.innerHTML = '';
+            
+            if (services.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = 'output warning';
+                emptyMsg.textContent = 'No services added yet. Click "Add Service" to begin monitoring.';
+                servicesList.appendChild(emptyMsg);
+                return;
+            }
+            
+            services.forEach((service, index) => {
+                const serviceDiv = document.createElement('div');
+                serviceDiv.className = 'service';
+                serviceDiv.innerHTML = `
+                    <span class="service-name">${service.name}</span>
+                    <span class="service-url">${service.url}</span>
+                    <span class="service-status status-${service.status || 'unknown'}">${getStatusText(service.status)}</span>
+                    <span class="service-actions">
+                        <button class="ping-btn" data-index="${index}">Ping</button>
+                        <button class="remove-btn" data-index="${index}">✕</button>
+                    </span>
+                `;
+                servicesList.appendChild(serviceDiv);
+            });
+            
+            // Add event listeners to buttons
+            document.querySelectorAll('.ping-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.dataset.index;
+                    pingService(index);
+                });
+            });
+            
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.dataset.index;
+                    removeService(index);
+                });
+            });
+        }
+        
+        // Get status text
+        function getStatusText(status) {
+            switch(status) {
+                case 'up': return 'UP';
+                case 'down': return 'DOWN';
+                default: return 'UNKNOWN';
+            }
+        }
+        
+        // Ping a service
+        function pingService(index) {
+            const service = services[index];
+            appendOutput(`Pinging ${service.name} (${service.url})...`, 'command');
+            
+            // Use fetch with a timeout to check if service is up
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            fetch(service.url, { 
+                method: 'HEAD',
+                mode: 'no-cors', // This prevents CORS issues but limits response info
+                signal: controller.signal
+            })
+            .then(() => {
+                // If we get here, service is reachable (though we can't check status code with no-cors)
+                service.status = 'up';
+                service.lastChecked = new Date().toISOString();
+                appendOutput(`${service.name} is UP`, 'success');
+                saveServices();
+                renderServicesList();
+            })
+            .catch(error => {
+                service.status = 'down';
+                service.lastChecked = new Date().toISOString();
+                appendOutput(`${service.name} is DOWN: ${error.message}`, 'error');
+                saveServices();
+                renderServicesList();
+            })
+            .finally(() => {
+                clearTimeout(timeoutId);
+            });
+        }
+        
+        // Ping all services
+        function pingAllServices() {
+            appendOutput('Pinging all services...', 'command');
+            services.forEach((_, index) => {
+                pingService(index);
+            });
+        }
+        
+        // Add a service
+        function addService(name, url) {
+            if (!name || !url) {
+                appendOutput('Error: Service name and URL are required', 'error');
+                return;
+            }
+            
+            // Basic URL validation
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            
+            services.push({
+                name,
+                url,
+                status: 'unknown',
+                lastChecked: null
+            });
+            
+            saveServices();
+            renderServicesList();
+            appendOutput(`Added service: ${name} (${url})`, 'success');
+        }
+        
+        // Remove a service
+        function removeService(index) {
+            const service = services[index];
+            services.splice(index, 1);
+            saveServices();
+            renderServicesList();
+            appendOutput(`Removed service: ${service.name}`, 'warning');
+        }
+        
+        // Save services to localStorage
+        function saveServices() {
+            localStorage.setItem('pingServices', JSON.stringify(services));
+        }
+        
+        // Event listeners
+        addServiceBtn.addEventListener('click', () => {
+            addModal.style.display = 'block';
+            serviceNameInput.focus();
+        });
+        
+        cancelAddBtn.addEventListener('click', () => {
+            addModal.style.display = 'none';
+            serviceNameInput.value = '';
+            serviceUrlInput.value = '';
+        });
+        
+        confirmAddBtn.addEventListener('click', () => {
+            const name = serviceNameInput.value.trim();
+            const url = serviceUrlInput.value.trim();
+            addService(name, url);
+            addModal.style.display = 'none';
+            serviceNameInput.value = '';
+            serviceUrlInput.value = '';
+        });
+        
+        pingAllBtn.addEventListener('click', pingAllServices);
+        
+        clearBtn.addEventListener('click', () => {
+            // Clear all output except services list
+            const servicesListElement = servicesList;
+            terminal.innerHTML = '';
+            terminal.appendChild(servicesListElement);
+            appendOutput('Log cleared', 'success');
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+
+        // ping every 10 seconds
+        setInterval(pingAllServices, 10000);
+    </script>
+</body>
+</html>
