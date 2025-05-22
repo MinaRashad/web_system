@@ -198,6 +198,13 @@
                 dataUrl: dataUrl,
                 target_path: '/Desktop'
             }, '*');
+            statusElement.style.display = 'block';
+            setTimeout(() => {
+                // Close the window after showing success message
+                window.parent.postMessage({
+                    action: 'closeWindow'
+                }, '*');
+            }, 1000);
         });
 
         // Initial preview update
