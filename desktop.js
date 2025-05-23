@@ -217,10 +217,33 @@ window.addEventListener('message', (event) => {
         refreshOpenedWindows();
     }
     if( event.data.action === 'command'){
-        const command = event.data.command
-        // command is a single line
-        eval(command)
+        
+        
+        // Whitelist of allowed functions
+        const allowedFunctions = {
+            "deleteByPath": deleteByPath,
+            "copyByPath": copyByPath,
+            "moveByPath": moveByPath,
+            "updateItemByPath": updateItemByPath,
+            "addApp": addApp,
+            "createFolder": createFolder,
+            "showError": showError,
+            "showMessage": showInfo
+        }
+
+        const functionName = event.data.functionName;
+        const args = event.data.args;
+
+        if (allowedFunctions[functionName]) {
+            allowedFunctions[functionName](...args);
+        }
+        else{
+            console.error(`Function ${functionName} is not allowed.`);
+        }
+        
+        
     }
+    
     if (event.data.action === 'createApp'){
         const name = event.data.appName;
         const icon = event.data.appIcon;

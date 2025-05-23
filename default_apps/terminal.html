@@ -107,8 +107,9 @@
         function executeCommand(command) {
             appendCommand(command);
             
-            const args = command.trim().split(' ');
-            const cmd = args[0].toLowerCase();
+            // Parse command with respect to quotes
+            const args = parseCommandArgs(command);
+            const cmd = args[0]?.toLowerCase() || '';
             
             switch (cmd) {
                 case 'help':
@@ -128,21 +129,21 @@
                     break;
                 case 'rm':
                     if (args[1]) {
-                        send_function_command(`deleteByPath("${args[1]}")`);
+                        send_function_command('removeByPath', [escapeString(args[1])]);
                     } else {
                         appendOutput('rm: missing operand', 'error');
                     }
                     break;
                 case 'cp':
                     if (args[1] && args[2]) {
-                        send_function_command(`copyByPath("${args[1]}", "${args[2]}")`);
+                        send_function_command('copyByPath', [escapeString(args[1]), escapeString(args[2])]);
                     } else {
                         appendOutput('cp: missing operand', 'error');
                     }
                     break;
                 case 'mv':
                     if (args[1] && args[2]) {
-                        send_function_command(`moveByPath("${args[1]}", "${args[2]}")`);
+                        send_function_command('moveByPath', [escapeString(args[1]), escapeString(args[2])]);
                     } else {
                         appendOutput('mv: missing operand', 'error');
                     }
@@ -154,6 +155,46 @@
                     appendOutput(`Command not found: ${cmd}`, 'error');
             }
         }
+
+        // Parse command arguments respecting quotes
+        function parseCommandArgs(command) {
+            const args = [];
+            let current = '';
+            let inQuotes = false;
+            let escaping = false;
+            
+            for (let i = 0; i < command.length; i++) {
+                const char = command[i];
+                
+                if (escaping) {
+                    current += char;
+                    escaping = false;
+                } else if (char === '\\') {
+                    escaping = true;
+                } else if (char === '"' || char === "'") {
+                    inQuotes = !inQuotes;
+                } else if (char === ' ' && !inQuotes) {
+                    if (current) {
+                        args.push(current);
+                        current = '';
+                    }
+                } else {
+                    current += char;
+                }
+            }
+            
+            if (current) {
+                args.push(current);
+            }
+            
+            return args;
+        }
+
+        // Escape string for safe inclusion in JavaScript
+        function escapeString(str) {
+            return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
         
         // Show help
         function showHelp() {
@@ -250,10 +291,11 @@ Available commands:
             window.addEventListener('message', tree);
         }
         
-        function send_function_command(command) {
+        function send_function_command(functionName, args=[]) {
             window.parent.postMessage({
                 action: 'command',
-                command: command
+                functionName: functionName,
+                args: args
             }, '*');
         }
         
