@@ -283,6 +283,135 @@ window.addEventListener('message', (event) => {
     refreshOpenedWindows();
 });
 
+function openSettings() {
+    const settingsWindow = document.getElementById('settingsWindow');
+    settingsWindow.style.display = 'block';
+    
+    // Load current background settings
+    loadBackgroundSettings();
+}
+
+function closeSettings() {
+    document.getElementById('settingsWindow').style.display = 'none';
+}
+
+function toggleBackgroundOptions() {
+    const backgroundType = document.getElementById('backgroundType').value;
+    
+    // Hide all options first
+    document.getElementById('gradientOptions').style.display = 'none';
+    document.getElementById('imageOptions').style.display = 'none';
+    
+    // Show relevant options
+    if (backgroundType === 'gradient') {
+        document.getElementById('gradientOptions').style.display = 'block';
+    } else if (backgroundType === 'image') {
+        document.getElementById('imageOptions').style.display = 'block';
+    }
+}
+
+function loadBackgroundSettings() {
+    // Load background settings from localStorage
+    const backgroundSettings = JSON.parse(localStorage.getItem('backgroundSettings')) || {};
+    
+    if (backgroundSettings.type) {
+        document.getElementById('backgroundType').value = backgroundSettings.type;
+        
+        if (backgroundSettings.type === 'gradient') {
+            document.getElementById('gradientStart').value = backgroundSettings.gradientStart || '#000033';
+            document.getElementById('gradientEnd').value = backgroundSettings.gradientEnd || '#330033';
+            document.getElementById('gradientDirection').value = backgroundSettings.gradientDirection || 'to bottom';
+        }
+    }
+    
+    toggleBackgroundOptions();
+}
+
+function applyBackground() {
+    const backgroundType = document.getElementById('backgroundType').value;
+    let backgroundSettings = {
+        type: backgroundType
+    };
+    
+    if (backgroundType === 'default') {
+        canvas.style.background = '';
+        canvas.style.backgroundImage = '';
+    } else if (backgroundType === 'gradient') {
+        const startColor = document.getElementById('gradientStart').value;
+        const endColor = document.getElementById('gradientEnd').value;
+        const direction = document.getElementById('gradientDirection').value;
+        
+        canvas.style.background = '';
+        canvas.style.backgroundImage = '';
+        canvas.style.background = `linear-gradient(${direction}, ${startColor}, ${endColor})`;
+        
+        backgroundSettings.gradientStart = startColor;
+        backgroundSettings.gradientEnd = endColor;
+        backgroundSettings.gradientDirection = direction;
+    } else if (backgroundType === 'image') {
+        const fileInput = document.getElementById('backgroundImage');
+        
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                canvas.style.background = '';
+                canvas.style.backgroundImage = `url(${e.target.result})`;
+                canvas.style.backgroundSize = 'cover';
+                canvas.style.backgroundPosition = 'center';
+                
+                backgroundSettings.imageData = e.target.result;
+                localStorage.setItem('backgroundSettings', JSON.stringify(backgroundSettings));
+                console.log("Read image data:", backgroundSettings);
+            };
+            
+            reader.readAsDataURL(fileInput.files[0]);
+        } else if (backgroundSettings.imageData) {
+            // If no new file but we have saved image data
+            canvas.style.background = '';
+            canvas.style.backgroundImage = `url(${backgroundSettings.imageData})`;
+            canvas.style.backgroundSize = 'cover';
+            canvas.style.backgroundPosition = 'center';
+        }
+    }
+    
+    // Save settings to localStorage
+    console.log("Saving background settings:", backgroundSettings);
+    localStorage.setItem('backgroundSettings', JSON.stringify(backgroundSettings));
+    //window.location.reload();
+}
+
+function resetBackground() {
+    // Remove background settings
+    localStorage.removeItem('backgroundSettings');
+    
+    // Reset form
+    document.getElementById('backgroundType').value = 'default';
+    toggleBackgroundOptions();
+    
+    // Reset background
+    canvas.style.background = '';
+    canvas.style.backgroundImage = '';
+}
+
+// Apply saved background on page load
+function applySavedBackground() {
+    const backgroundSettings = JSON.parse(localStorage.getItem('backgroundSettings'));
+    
+    if (backgroundSettings) {
+        if (backgroundSettings.type === 'gradient') {
+            canvas.style.background = `linear-gradient(${backgroundSettings.gradientDirection}, ${backgroundSettings.gradientStart}, ${backgroundSettings.gradientEnd})`;
+        } else if (backgroundSettings.type === 'image' && backgroundSettings.imageData) {
+            canvas.style.backgroundImage = `url(${backgroundSettings.imageData})`;
+            canvas.style.backgroundSize = 'cover';
+            canvas.style.backgroundPosition = 'center';
+        }
+    }
+}
+
+// Call on page load
+window.addEventListener('load', applySavedBackground);
+
 // Initialize
 loadDesktopIcons();
 drawDesktop();

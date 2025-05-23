@@ -8,11 +8,7 @@
 <body>
     <div class="status-bar">
         <div class="status-buttons">
-            <button class="status-button" onclick="updateTree()">Update</button>
-            <button class="status-button" onclick="resetTree()">Reset</button>
-            <button class="status-button" onclick="exportTree()">Export</button>
-            <button class="status-button" onclick="importTree()">Import</button>
-            <input type="file" id="importInput" style="display: none;" accept=".json" onchange="handleImportFile(event)">
+            <span class="settings-icon" onclick="openSettings()">⚙️</span>
         </div>
         <div class="time" id="time"></div>
         <div class="battery">
@@ -26,6 +22,76 @@
 
     <!-- Replace desktop div with canvas -->
     <canvas id="desktopCanvas"></canvas>
+
+    <!-- Settings window template -->
+    <div id="settingsWindow" class="settings-window" style="display: none;">
+        <div class="settings-header">
+            <div class="settings-title">Settings</div>
+            <div class="settings-controls">
+                <span class="settings-control settings-close" onclick="closeSettings()">✕</span>
+            </div>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <h3>Background</h3>
+                <div class="settings-option">
+                    <label>Background Type:</label>
+                    <select id="backgroundType" onchange="toggleBackgroundOptions()">
+                        <option value="default">Default</option>
+                        <option value="gradient">Gradient</option>
+                        <option value="image">Image</option>
+                    </select>
+                </div>
+                
+                <div id="gradientOptions" style="display: none;">
+                    <div class="settings-option">
+                        <label>Start Color:</label>
+                        <input type="color" id="gradientStart" value="#000033">
+                    </div>
+                    <div class="settings-option">
+                        <label>End Color:</label>
+                        <input type="color" id="gradientEnd" value="#330033">
+                    </div>
+                    <div class="settings-option">
+                        <label>Direction:</label>
+                        <select id="gradientDirection">
+                            <option value="to bottom">Top to Bottom</option>
+                            <option value="to right">Left to Right</option>
+                            <option value="to bottom right">Diagonal</option>
+                            <option value="to top">Bottom to Top</option>
+                            <option value="to left">Right to Left</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="imageOptions" style="display: none;">
+                    <div class="settings-option">
+                        <label>Upload Image:</label>
+                        <input type="file" id="backgroundImage" accept="image/*">
+                    </div>
+                </div>
+                
+                <div class="settings-option">
+                    <button onclick="applyBackground()">Apply Background</button>
+                    <button onclick="resetBackground()">Reset to Default</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>System</h3>
+                <div class="settings-option">
+                    <button onclick="updateTree()">Update System</button>
+                    <button onclick="resetTree()">Reset System</button>
+                </div>
+                <div class="settings-option">
+                    <button onclick="exportTree()">Export Data</button>
+                    <button onclick="importTree()">Import Data</button>
+                    <input type="file" id="importInput" style="display: none;" accept=".json" onchange="handleImportFile(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+    
 
     <div class="context-menu" id="contextMenu">
         <button onclick="location.reload()">Refresh</button>
