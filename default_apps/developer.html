@@ -86,6 +86,37 @@
             margin-top: 10px;
             display: none;
         }
+        .image-encoder {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            max-width: 80%;
+        }
+        .image-encoder h3 {
+            margin-top: 0;
+            color: white;
+        }
+        .image-preview {
+            max-width: 300px;
+            max-height: 200px;
+            margin: 10px 0;
+            border: 1px solid #444;
+        }
+        .encoder-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        .encoder-buttons button {
+            margin-left: 10px;
+        }
     </style>
     
 </head>
@@ -134,6 +165,25 @@
 
     <div id="errorMessage" class="error-message">Please enter an app name</div>
 
+    <div class="image-encoder" id="imageEncoder">
+        <h3>Image Encoder</h3>
+        <input type="file" id="imageFile" accept="image/*">
+        <div>
+            <img id="imagePreview" class="image-preview">
+        </div>
+        <div>
+            <label>
+                <input type="radio" name="insertFormat" value="base64" checked> Insert as Base64 URL
+            </label>
+            <label>
+                <input type="radio" name="insertFormat" value="img"> Insert as IMG tag
+            </label>
+        </div>
+        <div class="encoder-buttons">
+            <button id="insertImageBtn">Insert</button>
+            <button id="cancelImageBtn">Cancel</button>
+        </div>
+    </div>
     <script>
         const codeEditor = document.getElementById('codeEditor');
         const preview = document.getElementById('preview');
@@ -210,6 +260,71 @@
         // Initial preview update
         codeEditor.addEventListener('input', updatePreview);
         window.addEventListener('load', updatePreview);
+
+        const toolbarDiv = document.querySelector('.toolbar div:first-child');
+        const imageEncoderBtn = document.createElement('button');
+        imageEncoderBtn.id = 'imageEncoderBtn';
+        imageEncoderBtn.textContent = 'Add Image';
+        toolbarDiv.appendChild(imageEncoderBtn);
+
+        // Image encoder functionality
+        const imageEncoder = document.getElementById('imageEncoder');
+        const imageFile = document.getElementById('imageFile');
+        const imagePreview = document.getElementById('imagePreview');
+        const insertImageBtn = document.getElementById('insertImageBtn');
+        const cancelImageBtn = document.getElementById('cancelImageBtn');
+
+        // Show image encoder
+        imageEncoderBtn.addEventListener('click', function() {
+            imageEncoder.style.display = 'block';
+            imagePreview.src = '';
+        });
+
+        // Cancel image encoding
+        cancelImageBtn.addEventListener('click', function() {
+            imageEncoder.style.display = 'none';
+        });
+
+        // Preview image
+        imageFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Insert image into editor
+        insertImageBtn.addEventListener('click', function() {
+            if (!imagePreview.src) {
+                alert('Please select an image first');
+                return;
+            }
+
+            const format = document.querySelector('input[name="insertFormat"]:checked').value;
+            let insertText = '';
+            
+            if (format === 'base64') {
+                insertText = imagePreview.src;
+            } else if (format === 'img') {
+                insertText = `<img src="${imagePreview.src}" alt="Embedded Image">`;
+            }
+
+            // Insert at cursor position
+            const cursorPos = codeEditor.selectionStart;
+            codeEditor.value = codeEditor.value.substring(0, cursorPos) + 
+                               insertText + 
+                               codeEditor.value.substring(cursorPos);
+            
+            // Update preview
+            updatePreview();
+            
+            // Close encoder
+            imageEncoder.style.display = 'none';
+        });
     </script>
 </body>
 </html>
