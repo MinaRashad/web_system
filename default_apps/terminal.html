@@ -68,11 +68,14 @@
         const prompt = document.getElementById('prompt');
         
         // Current working directory
-        // `./default_apps/terminal.html?path=${currentPath}`
         let currentPath = window.location.search.split('=')[1] || '/Desktop';
         
         // turn url encoding to normal string
         currentPath = decodeURIComponent(currentPath);
+        
+        // Command history
+        let commandHistory = [];
+        let historyIndex = -1;
         
         // Initialize terminal
         function initTerminal() {
@@ -104,8 +107,15 @@
         }
         
         // Execute command
+        // Execute command
         function executeCommand(command) {
             appendCommand(command);
+            
+            // Add command to history if not empty
+            if (command.trim() !== '') {
+                commandHistory.push(command);
+                historyIndex = commandHistory.length;
+            }
             
             // Parse command with respect to quotes
             const args = parseCommandArgs(command);
@@ -124,26 +134,29 @@
                 case 'clear':
                     terminal.innerHTML = '';
                     break;
+                case 'cd':
+                    changeDirectory(args[1] || '');
+                    break;
                 case 'tree':
                     showTree(args[1]);
                     break;
                 case 'rm':
                     if (args[1]) {
-                        send_function_command('removeByPath', [escapeString(args[1])]);
+                        send_function_command('removeByPath', [escapeString(resolvePath(args[1]))]);
                     } else {
                         appendOutput('rm: missing operand', 'error');
                     }
                     break;
                 case 'cp':
                     if (args[1] && args[2]) {
-                        send_function_command('copyByPath', [escapeString(args[1]), escapeString(args[2])]);
+                        send_function_command('copyByPath', [escapeString(resolvePath(args[1])), escapeString(resolvePath(args[2]))]);
                     } else {
                         appendOutput('cp: missing operand', 'error');
                     }
                     break;
                 case 'mv':
                     if (args[1] && args[2]) {
-                        send_function_command('moveByPath', [escapeString(args[1]), escapeString(args[2])]);
+                        send_function_command('moveByPath', [escapeString(resolvePath(args[1])), escapeString(resolvePath(args[2]))]);
                     } else {
                         appendOutput('mv: missing operand', 'error');
                     }
@@ -196,6 +209,68 @@
         }
 
         
+         // Resolve path (handle relative and absolute paths)
+         function resolvePath(path) {
+            if (!path) return currentPath;
+            
+            // If absolute path (starts with /)
+            if (path.startsWith('/')) {
+                return path;
+            }
+            
+            // Handle relative paths
+            const parts = currentPath.split('/').filter(p => p);
+            const pathParts = path.split('/').filter(p => p);
+            
+            for (const part of pathParts) {
+                if (part === '..') {
+                    // Go up one directory
+                    if (parts.length > 0) {
+                        parts.pop();
+                    }
+                } else if (part !== '.') {
+                    // Add to current path (ignore '.')
+                    parts.push(part);
+                }
+            }
+            
+            return '/' + parts.join('/');
+        }
+        
+        // Change directory
+        function changeDirectory(path) {
+            if (!path) {
+                // Default to /Desktop if no path provided
+                currentPath = '/Desktop';
+                updatePrompt();
+                return;
+            }
+            
+            const newPath = resolvePath(path);
+            
+            // Verify the path exists
+            window.parent.postMessage({ action: 'listDirectory', path: newPath }, '*');
+            
+            let cd = (event) => {
+                let directory_obj = null;
+                if (event.data) {
+                    directory_obj = event.data.directory;
+                }
+                
+                if (directory_obj) {
+                    currentPath = newPath;
+                    updatePrompt();
+                } else {
+                    appendOutput(`cd: no such directory: ${path}`, 'error');
+                }
+                
+                // Clear the event listener after processing
+                window.removeEventListener('message', cd);
+            }
+            
+            window.addEventListener('message', cd);
+        }
+        
         // Show help
         function showHelp() {
             const helpText = `
@@ -203,6 +278,7 @@ Available commands:
   help                Show this help message
   ls [path]           List directory contents
   pwd                 Print working directory
+  cd [path]           Change directory
   clear               Clear the terminal
   tree                Display directory tree
   rm [path]           Remove file or directory
@@ -212,7 +288,7 @@ Available commands:
 `;
             appendOutput(helpText);
         }
-        
+
         // List directory contents
         function listDirectory(path) {
             window.parent.postMessage({ action: 'listDirectory', path: path || currentPath }, '*');
@@ -299,18 +375,36 @@ Available commands:
             }, '*');
         }
         
-        // Handle command input
         commandInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const command = commandInput.value;
                 commandInput.value = '';
                 executeCommand(command);
+                historyIndex = commandHistory.length;
+            } else if (e.key === 'ArrowUp') {
+                // Navigate up through history
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    commandInput.value = commandHistory[historyIndex];
+                    // Move cursor to end of input
+                    setTimeout(() => {
+                        commandInput.selectionStart = commandInput.selectionEnd = commandInput.value.length;
+                    }, 0);
+                }
+            } else if (e.key === 'ArrowDown') {
+                // Navigate down through history
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    commandInput.value = commandHistory[historyIndex];
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex = commandHistory.length;
+                    commandInput.value = '';
+                }
             }
         });
         
         // Initialize terminal on load
         window.addEventListener('load', initTerminal);
-        
         
 
     </script>
