@@ -1,12 +1,572 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Portfolio</title>
+    <title>Interactive Portfolio</title>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            overflow: hidden;
+        }
         
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            transition: transform 0.1s ease;
+            z-index: 10;
+        }
+        
+        .skill-bubble {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+        
+        .skill-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+        
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+            z-index: 20;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        
+        #info-panel h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
+        #close-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .particle {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        #edit-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 30;
+        }
+        
+        #edit-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 40;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        #edit-panel textarea {
+            width: 100%;
+            height: 300px;
+            background-color: #2d2d2d;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        
+        #edit-panel button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="instructions">Use WASD or arrow keys to move. press Enter on bubbles to learn more.</div>
+        <button id="edit-button">Edit Portfolio</button>
+    </div>
     
+    <div id="info-panel">
+        <button id="close-panel">×</button>
+        <h2 id="info-title">Title</h2>
+        <div id="info-content">Content goes here</div>
+    </div>
+    
+    <div id="edit-panel">
+        <h2>Edit Portfolio Data</h2>
+        <textarea id="portfolio-data"></textarea>
+        <button id="save-data">Save</button>
+        <button id="cancel-edit">Cancel</button>
+    </div>
+    
+    <script>
+        // Default portfolio data - replace with your own!
+        let portfolioData = {
+            name: "Your Name",
+            title: "Software Developer",
+            about: "I'm a passionate developer with experience in web development, AI, and game design. This interactive portfolio showcases my skills and projects in a fun way!",
+            skills: [
+                {
+                    name: "JavaScript",
+                    level: 90,
+                    color: "#F7DF1E",
+                    description: "Extensive experience with vanilla JS, React, Node.js, and various frameworks."
+                },
+                {
+                    name: "Python",
+                    level: 85,
+                    color: "#3776AB",
+                    description: "Proficient in Python for web development, data analysis, and machine learning."
+                },
+                {
+                    name: "HTML/CSS",
+                    level: 95,
+                    color: "#E34F26",
+                    description: "Expert in creating responsive, accessible, and beautiful user interfaces."
+                },
+                {
+                    name: "React",
+                    level: 80,
+                    color: "#61DAFB",
+                    description: "Built multiple production applications using React and its ecosystem."
+                },
+                {
+                    name: "Node.js",
+                    level: 75,
+                    color: "#339933",
+                    description: "Created RESTful APIs and backend services using Express and other frameworks."
+                }
+            ],
+            projects: [
+                {
+                    name: "E-commerce Platform",
+                    description: "A full-stack e-commerce solution with payment processing, inventory management, and analytics dashboard.",
+                    technologies: ["React", "Node.js", "MongoDB", "Stripe API"]
+                },
+                {
+                    name: "AI Image Generator",
+                    description: "Web application that uses machine learning to generate unique images based on text descriptions.",
+                    technologies: ["Python", "TensorFlow", "Flask", "React"]
+                },
+                {
+                    name: "Mobile Fitness App",
+                    description: "Cross-platform mobile application for tracking workouts, nutrition, and health metrics.",
+                    technologies: ["React Native", "Firebase", "Redux", "HealthKit API"]
+                }
+            ],
+            education: [
+                {
+                    degree: "Master of Computer Science",
+                    institution: "University Name",
+                    year: "2018-2020"
+                },
+                {
+                    degree: "Bachelor of Science in Software Engineering",
+                    institution: "University Name",
+                    year: "2014-2018"
+                }
+            ],
+            contact: {
+                email: "your.email@example.com",
+                linkedin: "linkedin.com/in/yourprofile",
+                github: "github.com/yourusername"
+            }
+        };
+        
+        // Try to load saved data from localStorage
+        const savedData = localStorage.getItem('portfolioData');
+        if (savedData) {
+            try {
+                portfolioData = JSON.parse(savedData);
+            } catch (e) {
+                console.error("Error loading saved portfolio data:", e);
+            }
+        }
+        
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const infoPanel = document.getElementById('info-panel');
+        const infoTitle = document.getElementById('info-title');
+        const infoContent = document.getElementById('info-content');
+        const closePanel = document.getElementById('close-panel');
+        const editButton = document.getElementById('edit-button');
+        const editPanel = document.getElementById('edit-panel');
+        const portfolioDataTextarea = document.getElementById('portfolio-data');
+        const saveDataButton = document.getElementById('save-data');
+        const cancelEditButton = document.getElementById('cancel-edit');
+        
+        let playerX = window.innerWidth / 2;
+        let playerY = window.innerHeight / 2;
+        let playerRadius = 20
+        let keys = {};
+        let skillBubbles = [];
+        
+        // Initialize player position
+        updatePlayerPosition();
+        
+        // Create skill bubbles
+        function createSkillBubbles() {
+            // Clear existing bubbles
+            skillBubbles.forEach(bubble => {
+                if (bubble.element && bubble.element.parentNode) {
+                    bubble.element.parentNode.removeChild(bubble.element);
+                }
+            });
+            skillBubbles = [];
+            
+            // Create new bubbles based on portfolio data
+            portfolioData.skills.forEach((skill, index) => {
+                const angle = (index / portfolioData.skills.length) * Math.PI * 2;
+                const radius = Math.min(window.innerWidth, window.innerHeight) * 0.3;
+                const x = window.innerWidth / 2 + Math.cos(angle) * radius;
+                const y = window.innerHeight / 2 + Math.sin(angle) * radius;
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'skill-bubble';
+                bubble.textContent = skill.name;
+                bubble.style.width = `${skill.level * 0.6 + 40}px`;
+                bubble.style.height = `${skill.level * 0.6 + 40}px`;
+                bubble.style.backgroundColor = skill.color;
+                bubble.style.color = getContrastColor(skill.color);
+                bubble.style.left = `${x - (skill.level * 0.6 + 40) / 2}px`;
+                bubble.style.top = `${y - (skill.level * 0.6 + 40) / 2}px`;
+
+                // event listenr to pressing enter
+                document.addEventListener('keydown', (e) => {
+                    if( is_inside_bubble(playerX, playerY, x, y, radius) && e.key === 'Enter') {
+                        showInfo(skill.name, `
+                            <h3>${skill.name}</h3>
+                            <p>${skill.description}</p>
+                            <p><strong>Level:</strong> ${skill.level}%</p>
+                        `);
+                    }
+                });
+                
+                
+                gameContainer.appendChild(bubble);
+                
+                skillBubbles.push({
+                    element: bubble,
+                    x: x,
+                    y: y,
+                    radius: (skill.level * 0.6 + 40) / 2
+                });
+            });
+            
+            
+            // Add special bubbles for other sections
+            addSpecialBubble("About Me", "#FF5722", window.innerWidth * 0.2, window.innerHeight * 0.2, () => {
+                showInfo("About Me", `
+                    <h3>${portfolioData.name}</h3>
+                    <h4>${portfolioData.title}</h4>
+                    <p>${portfolioData.about}</p>
+                `);
+            });
+            
+            addSpecialBubble("Projects", "#2196F3", window.innerWidth * 0.8, window.innerHeight * 0.2, () => {
+                let projectsHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">';
+                portfolioData.projects.forEach(project => {
+                    projectsHTML += `
+                        <div style="background-color: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                            <h3>${project.name}</h3>
+                            <p>${project.description}</p>
+                            <p><strong>Technologies:</strong> ${project.technologies.join(', ')}</p>
+                        </div>
+                    `;
+                });
+                projectsHTML += '</div>';
+                showInfo("Projects", projectsHTML);
+            });
+            
+            addSpecialBubble("Education", "#9C27B0", window.innerWidth * 0.2, window.innerHeight * 0.8, () => {
+                let educationHTML = '';
+                portfolioData.education.forEach(edu => {
+                    educationHTML += `
+                        <div style="margin-bottom: 15px;">
+                            <h3>${edu.degree}</h3>
+                            <p>${edu.institution} (${edu.year})</p>
+                        </div>
+                    `;
+                });
+                showInfo("Education", educationHTML);
+            });
+            
+            addSpecialBubble("Contact", "#4CAF50", window.innerWidth * 0.8, window.innerHeight * 0.8, () => {
+                showInfo("Contact Information", `
+                    <p><strong>Email:</strong> ${portfolioData.contact.email}</p>
+                    <p><strong>LinkedIn:</strong> <a href="https://${portfolioData.contact.linkedin}" target="_blank">${portfolioData.contact.linkedin}</a></p>
+                    <p><strong>GitHub:</strong> <a href="https://${portfolioData.contact.github}" target="_blank">${portfolioData.contact.github}</a></p>
+                `);
+            });
+        }
+        
+        function addSpecialBubble(name, color, x, y, clickHandler) {
+            const bubble = document.createElement('div');
+            bubble.className = 'skill-bubble';
+            bubble.textContent = name;
+            bubble.style.width = '80px';
+            bubble.style.height = '80px';
+            bubble.style.backgroundColor = color;
+            bubble.style.color = getContrastColor(color);
+            bubble.style.left = `${x - 40}px`;
+            bubble.style.top = `${y - 40}px`;
+            bubble.style.fontWeight = 'bold';
+            
+            document.addEventListener('keydown', (e) => {
+                    if( is_inside_bubble(playerX, playerY, x, y, 80) && e.key === 'Enter') {
+                        clickHandler();
+                    }
+                });
+            
+            gameContainer.appendChild(bubble);
+            
+            skillBubbles.push({
+                element: bubble,
+                x: x,
+                y: y,
+                radius: 40
+            });
+        }
+        
+        function getContrastColor(hexColor) {
+            // Convert hex to RGB
+            const r = parseInt(hexColor.substr(1, 2), 16);
+            const g = parseInt(hexColor.substr(3, 2), 16);
+            const b = parseInt(hexColor.substr(5, 2), 16);
+            
+            // Calculate luminance
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            
+            // Return black or white based on luminance
+            return luminance > 0.5 ? '#000000' : '#ffffff';
+        }
+        
+        function showInfo(title, content) {
+            infoTitle.textContent = title;
+            infoContent.innerHTML = content;
+            infoPanel.style.display = 'block';
+            
+            // Create particles effect
+            createParticles();
+        }
+        
+        function createParticles() {
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 8 + 2;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Random position around the player
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 100 + 50;
+                const startX = playerX + Math.cos(angle) * 20;
+                const startY = playerY + Math.sin(angle) * 20;
+                const endX = playerX + Math.cos(angle) * distance;
+                const endY = playerY + Math.sin(angle) * distance;
+                
+                particle.style.left = `${startX}px`;
+                particle.style.top = `${startY}px`;
+                
+                gameContainer.appendChild(particle);
+                
+                // Animate the particle
+                const duration = Math.random() * 1000 + 500;
+                particle.animate([
+                    { left: `${startX}px`, top: `${startY}px`, opacity: 1 },
+                    { left: `${endX}px`, top: `${endY}px`, opacity: 0 }
+                ], {
+                    duration: duration,
+                    easing: 'ease-out'
+                });
+                
+                // Remove particle after animation
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, duration);
+            }
+        }
+        
+        closePanel.addEventListener('click', () => {
+            infoPanel.style.display = 'none';
+        });
+        
+        // Player movement
+        function updatePlayerPosition() {
+            player.style.left = `${playerX - 20}px`;
+            player.style.top = `${playerY - 20}px`;
+            
+            // Check for collisions with skill bubbles
+            checkCollisions();
+        }
+        
+        function checkCollisions() {
+            skillBubbles.forEach(bubble => {
+                const dx = bubble.x - playerX;
+                const dy = bubble.y - playerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // If player is close to bubble, make it pulse
+                if (distance < bubble.radius + 60) {
+                    bubble.element.style.transform = 'scale(1.1)';
+                    bubble.element.style.boxShadow = '0 0 25px rgba(255, 255, 255, 0.7)';
+                } else {
+                    bubble.element.style.transform = 'scale(1)';
+                    bubble.element.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.3)';
+                }
+            });
+        }
+
+        function is_inside_bubble(player_x, player_y, bubble_x, bubble_y, bubble_radius) {
+            // the position of the player with respect to center is <dx, dy>
+            const dx = player_x - bubble_x;
+            const dy = player_y - bubble_y;
+            
+            // the distance from center is sqrt(dx^2 + dy^2)
+            // if the distance is less than the radius of the bubble, return true
+            if( dx * dx + dy * dy < bubble_radius * bubble_radius) {
+                console.log(dx, dy, bubble_radius, Math.sqrt(dx * dx + dy * dy))
+            }
+            return Math.sqrt(dx * dx + dy * dy) < bubble_radius/2;
+        }
+        
+        // Keyboard controls
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function gameLoop() {
+            const speed = 5;
+            
+            // WASD or Arrow keys
+            if (keys['w'] || keys['W'] || keys['ArrowUp']) {
+                playerY = Math.max(20, playerY - speed);
+            }
+            if (keys['s'] || keys['S'] || keys['ArrowDown']) {
+                playerY = Math.min(window.innerHeight - 20, playerY + speed);
+            }
+            if (keys['a'] || keys['A'] || keys['ArrowLeft']) {
+                playerX = Math.max(20, playerX - speed);
+            }
+            if (keys['d'] || keys['D'] || keys['ArrowRight']) {
+                playerX = Math.min(window.innerWidth - 20, playerX + speed);
+            }
+            
+            updatePlayerPosition();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Edit functionality
+        editButton.addEventListener('click', () => {
+            portfolioDataTextarea.value = JSON.stringify(portfolioData, null, 2);
+            editPanel.style.display = 'block';
+        });
+        
+        saveDataButton.addEventListener('click', () => {
+            try {
+                const newData = JSON.parse(portfolioDataTextarea.value);
+                portfolioData = newData;
+                localStorage.setItem('portfolioData', JSON.stringify(portfolioData));
+                createSkillBubbles();
+                editPanel.style.display = 'none';
+            } catch (e) {
+                alert('Invalid JSON format. Please check your data.');
+                console.error(e);
+            }
+        });
+        
+        cancelEditButton.addEventListener('click', () => {
+            editPanel.style.display = 'none';
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            createSkillBubbles();
+            playerX = window.innerWidth / 2;
+            playerY = window.innerHeight / 2;
+            updatePlayerPosition();
+        });
+        
+        // Initialize
+        createSkillBubbles();
+        gameLoop();
+        
+        // Close window function for parent communication
+        function closeWindow() {
+            window.parent.postMessage({ action: 'closeWindow' }, '*');
+        }
+    </script>
 </body>
 </html>
