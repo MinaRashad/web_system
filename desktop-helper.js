@@ -187,76 +187,84 @@ function create_initial_tree() {
         }
     };
 
-    // Create Fun Stuff folder
-    directory_tree["Desktop"]["Fun Stuff"] = {
-        ".meta_data": {
-            "path": "/Desktop/Fun Stuff",
-            "type": "folder",
-            "position":[
-                Math.floor(100),
-                Math.floor(120)
-            ]
-        }
-    };
-
-    // Default icons
-    const defaultIcons = [
-        { name: "Knowledge Cards", link: "./default_apps/KnowledgeCards.html", icon: "🧠" },
-        { name: "Piano", link: "./default_apps/piano.html", icon: "🎹" },
-        { name: "Chess", link: "./default_apps/chess.html", icon: "♟" },
-        { name:"Checkers", link: "./default_apps/checkers.html", icon: "🔲" },
-        { name: "Solar System", link: "./default_apps/solarSystem.html", icon: "🪐" },
-        { name: "Hearing Test", link: "./default_apps/hearing_test.html", icon: "👂" },
-        { name: "Gardening Game", link: "./default_apps/gardening_game.html", icon: "🌱" },
-        { name: "HACKIT", link: "HACKIT/index.html", icon: "🔍" },
-        { name: "Journal", link: "https://minarashad.github.io/AI-therapist/", icon: "📓" },
-        { name: "Clock", link: "./default_apps/clock.html", icon: "🕒" },
-        { name: "Ladder", link: "./default_apps/ladder.html", icon: "🪜" }
-
+    // Create category folders
+    const folders = [
+        { name: "Games", position: [100, 120], icon: "🎮" },
+        { name: "Tools", position: [100, 240], icon: "🔧" },
+        { name: "Develop", position: [100, 360], icon: "💻" }
     ];
 
-    defaultIcons.forEach(icon => {
-        directory_tree["Desktop"]["Fun Stuff"][icon.name] = {
+    folders.forEach(folder => {
+        directory_tree["Desktop"][folder.name] = {
             ".meta_data": {
-                "path": `/Desktop/Fun Stuff/${icon.name}`,
-                "type": "file",
-                "link": icon.link,
-                "icon": icon.icon,
-                "position": [
-                    Math.floor(Math.random() * (canvas.width - 100)),
-                    Math.floor(Math.random() * (canvas.height - 120))
-                ]
+                "path": `/Desktop/${folder.name}`,
+                "type": "folder",
+                "icon": folder.icon,
+                "position": folder.position
             }
         };
     });
 
-    // Add Developer and Terminal apps directly to the desktop
-    directory_tree["Desktop"]["Developer"] = {
-        ".meta_data": {
-            "path": "/Desktop/Developer",
-            "type": "file",
-            "link": "./default_apps/developer.html",
-            "icon": "👨‍💻",
-            "position": [
-                Math.floor(50),
-                Math.floor(50)
-            ]
-        }
-    };
+    // Games folder apps
+    const gameApps = [
+        { name: "Chess", link: "./default_apps/chess.html", icon: "♟" },
+        { name: "Checkers", link: "./default_apps/checkers.html", icon: "🔲" },
+        { name: "Piano", link: "./default_apps/piano.html", icon: "🎹" },
+        { name: "Gardening Game", link: "./default_apps/gardening_game.html", icon: "🌱" },
+        { name: "Knowledge Cards", link: "./default_apps/KnowledgeCards.html", icon: "🧠" },
+        { name: "Solar System", link: "./default_apps/solarSystem.html", icon: "🪐" }
+    ];
 
-    directory_tree["Desktop"]["Terminal"] = {
-        ".meta_data": {
-            "path": "/Desktop/Terminal",
-            "type": "file",
-            "link": "./default_apps/terminal.html",
-            "icon": "🖥️",
-            "position": [
-                Math.floor(150),
-                Math.floor(50)
-            ]
-        }
-    };
+    gameApps.forEach((app, index) => {
+        directory_tree["Desktop"]["Games"][app.name] = {
+            ".meta_data": {
+                "path": `/Desktop/Games/${app.name}`,
+                "type": "file",
+                "link": app.link,
+                "icon": app.icon
+            }
+        };
+    });
 
+    // Tools folder apps
+    const toolApps = [
+        { name: "Hearing Test", link: "./default_apps/hearing_test.html", icon: "👂" },
+        { name: "Clock", link: "./default_apps/clock.html", icon: "🕒" },
+        { name: "Ladder", link: "./default_apps/ladder.html", icon: "🪜" },
+        { name: "HACKIT", link: "HACKIT/index.html", icon: "🔍" }
+
+    ];
+
+    toolApps.forEach((app, index) => {
+        directory_tree["Desktop"]["Tools"][app.name] = {
+            ".meta_data": {
+                "path": `/Desktop/Tools/${app.name}`,
+                "type": "file",
+                "link": app.link,
+                "icon": app.icon
+            }
+        };
+    });
+
+    // Develop folder apps
+    const developApps = [
+        { name: "Developer", link: "./default_apps/developer.html", icon: "👨‍💻" },
+        { name: "Terminal", link: "./default_apps/terminal.html", icon: "🖥️" },
+        { name: "Service Ping", link: "./default_apps/service-ping.html", icon: "📡" }
+    ];
+
+    developApps.forEach((app, index) => {
+        directory_tree["Desktop"]["Develop"][app.name] = {
+            ".meta_data": {
+                "path": `/Desktop/Develop/${app.name}`,
+                "type": "file",
+                "link": app.link,
+                "icon": app.icon
+            }
+        };
+    });
+
+    // Add Portfolio directly to desktop
     directory_tree["Desktop"]["Portfolio"] = {
         ".meta_data": {
             "path": "/Desktop/Portfolio",
@@ -270,12 +278,13 @@ function create_initial_tree() {
         }
     };
 
-    directory_tree["Desktop"]["Service Ping"] = {
+    // Add Journal to desktop
+    directory_tree["Desktop"]["Journal"] = {
         ".meta_data": {
-            "path": "/Desktop/Service Ping",
+            "path": "/Desktop/Journal",
             "type": "file",
-            "link": "./default_apps/service-ping.html",
-            "icon": "📡",
+            "link": "https://minarashad.github.io/AI-therapist/",
+            "icon": "📓",
             "position": [
                 Math.floor(350),
                 Math.floor(50)
@@ -287,8 +296,7 @@ function create_initial_tree() {
     const backupTree = JSON.parse(localStorage.getItem('directory_tree_backup'));
     if (backupTree) {
         directory_tree = mergeDirectoryTrees(directory_tree, backupTree);
-
-        // remove back up
+        // remove backup
         localStorage.removeItem('directory_tree_backup')
     }
 
@@ -481,7 +489,6 @@ function addApp(name, icon, link, currentPath) {
         return;
     }
     
-
     let context = getObjectByPath(currentPath);
     // Check if file/folder with same name already exists
     if (context[name]) {
@@ -489,13 +496,12 @@ function addApp(name, icon, link, currentPath) {
         return;
     }
     
-    pos = getMousePos(canvas, event);
-
-    if(!pos.x) pos.x = Math.floor(Math.random() * (canvas.width - 100));
-    if(!pos.y) pos.y = Math.floor(Math.random() * (canvas.width - 100));
-
+    // Get mouse position or use a safe default position
+    let pos = getMousePos(canvas, event);
     
-
+    // Ensure position is within screen boundaries
+    const safeX = pos.x ? Math.min(Math.max(pos.x, 50), canvas.width - 100) : 100;
+    const safeY = pos.y ? Math.min(Math.max(pos.y, 50), canvas.height - 150) : 100;
 
     // Add the new app
     context[name] = {
@@ -505,12 +511,11 @@ function addApp(name, icon, link, currentPath) {
             "link": link,
             "icon": icon || "📄",
             "position": [
-                Math.floor(pos.x),
-                Math.floor(pos.y)
+                Math.floor(safeX),
+                Math.floor(safeY)
             ]
         }
     };
-    
     
     setTree();
     loadDesktopIcons();
