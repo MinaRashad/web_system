@@ -657,19 +657,30 @@ function handleSquareClick(event) {
         currentTurn = 'white';
         document.getElementById('turn-display').textContent = "Turn: " + currentTurn;
         chessboard.innerHTML = '';
+        
+        // Create the full chessboard with all cells, even if empty
         for (let i = 0; i < 8; i++) {
-        const row = document.createElement('tr');
-        for (let j = 0; j < 8; j++) {
-            const square = document.createElement('td');
-            square.className = (i + j) % 2 === 0 ? 'square white' : 'square black';
-            square.id = String.fromCharCode(97 + j) + (8 - i);
-            row.appendChild(square);
-            square.innerHTML = pieces.find(piece => piece.position === square.id)?.symbol || '';
-                        square.addEventListener('click', handleSquareClick);
-
+            const row = document.createElement('tr');
+            for (let j = 0; j < 8; j++) {
+                const square = document.createElement('td');
+                square.className = (i + j) % 2 === 0 ? 'square white' : 'square black';
+                square.id = String.fromCharCode(97 + j) + (8 - i);
+                
+                // Set width and height explicitly to prevent column collapse
+                square.style.width = '85px';
+                square.style.height = '85px';
+                square.style.minWidth = '85px';
+                square.style.minHeight = '85px';
+                
+                row.appendChild(square);
+                
+                // Find piece at this position
+                const piece = pieces.find(piece => piece.position === square.id);
+                square.innerHTML = piece ? piece.symbol : '';
+                square.addEventListener('click', handleSquareClick);
+            }
+            chessboard.appendChild(row);
         }
-        chessboard.appendChild(row);
-    }
     }
 
 
