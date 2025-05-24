@@ -16,6 +16,12 @@ let dragOffsetY = 0;
 let lastClickTime = 0;
 const doubleClickDelay = 300; // ms
 
+// Selection variables
+let isSelecting = false;
+let selectionStart = { x: 0, y: 0 };
+let selectionEnd = { x: 0, y: 0 };
+let selectedIcons = [];
+let ctrlKeyPressed = false;
 
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -38,67 +44,192 @@ canvas.addEventListener('mouseleave', () => {
     });
     isDragging = false;
 })
+
+// Track Ctrl key state
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+        ctrlKeyPressed = true;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+        ctrlKeyPressed = false;
+    }
+});
+
 canvas.addEventListener('mousedown', (e) => {
     const pos = getMousePos(canvas, e);
     
-    // Clear previous highlight
-    desktopIcons.forEach(icon => {
-        icon.highlighted = false;
-    });
+    // Start selection box if not clicking on an icon and not holding Ctrl
+    let clickedOnIcon = false;
     
     // Check if clicked on an icon
     for (let i = desktopIcons.length - 1; i >= 0; i--) {
         if (desktopIcons[i].isPointInside(pos.x, pos.y)) {
-            targetedIcon = desktopIcons[i];
-            targetedIcon.highlighted = true;
-            isDragging = true;
-            dragOffsetX = pos.x - targetedIcon.position[0];
-            dragOffsetY = pos.y - targetedIcon.position[1];
+            clickedOnIcon = true;
             
-            // Check for double click
+            // If Ctrl is pressed, toggle selection of this icon
+            if (ctrlKeyPressed) {
+                const iconIndex = selectedIcons.indexOf(desktopIcons[i]);
+                if (iconIndex === -1) {
+                    // Add to selection
+                    selectedIcons.push(desktopIcons[i]);
+                    desktopIcons[i].highlighted = true;
+                } else {
+                    // Remove from selection
+                    selectedIcons.splice(iconIndex, 1);
+                    desktopIcons[i].highlighted = false;
+                }
+            } else {
+                // If not holding Ctrl, clear previous selection unless clicking on already selected icon
+                const wasSelected = selectedIcons.includes(desktopIcons[i]);
+                
+                if (!wasSelected) {
+                    // Clear previous selection
+                    selectedIcons.forEach(icon => {
+                        icon.highlighted = false;
+                    });
+                    selectedIcons = [desktopIcons[i]];
+                    desktopIcons[i].highlighted = true;
+                }
+            }
+            
+            targetedIcon = desktopIcons[i];
+            
+            // Check for double click on the targeted icon
             const currentTime = new Date().getTime();
-            if (currentTime - lastClickTime < doubleClickDelay) {
+            if (currentTime - lastClickTime < doubleClickDelay && selectedIcons.length === 1) {
                 handleDoubleClick(targetedIcon);
             }
             lastClickTime = currentTime;
             
+            // Set up for dragging if we're not holding Ctrl
+            if (!ctrlKeyPressed) {
+                isDragging = true;
+                dragOffsetX = pos.x - targetedIcon.position[0];
+                dragOffsetY = pos.y - targetedIcon.position[1];
+            }
+            
             break;
         }
+    }
+    
+    // If not clicking on an icon and not holding Ctrl, start selection box
+    if (!clickedOnIcon && !ctrlKeyPressed) {
+        // Clear previous selection
+        selectedIcons.forEach(icon => {
+            icon.highlighted = false;
+        });
+        selectedIcons = [];
+        
+        isSelecting = true;
+        selectionStart = pos;
+        selectionEnd = pos;
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (isDragging && targetedIcon && targetedIcon.position) {
-        const pos = getMousePos(canvas, e);
-        targetedIcon.position[0] = pos.x - dragOffsetX;
-        targetedIcon.position[1] = pos.y - dragOffsetY;
+    const pos = getMousePos(canvas, e);
+    
+    if (isSelecting) {
+        // Update selection box end point
+        selectionEnd = pos;
         
-        // Update position in directory tree
-        updateIconPosition(targetedIcon);
+        // Check which icons are in the selection box
+        const selectionRect = getSelectionRect();
+        
+        desktopIcons.forEach(icon => {
+            // Check if icon is in selection rectangle
+            if (isIconInSelectionRect(icon, selectionRect)) {
+                if (!icon.highlighted) {
+                    icon.highlighted = true;
+                    if (!selectedIcons.includes(icon)) {
+                        selectedIcons.push(icon);
+                    }
+                }
+            } else {
+                if (icon.highlighted && !ctrlKeyPressed) {
+                    icon.highlighted = false;
+                    const index = selectedIcons.indexOf(icon);
+                    if (index !== -1) {
+                        selectedIcons.splice(index, 1);
+                    }
+                }
+            }
+        });
+    } else if (isDragging && targetedIcon && targetedIcon.position) {
+        // If dragging a single icon
+        if (selectedIcons.length === 1) {
+            targetedIcon.position[0] = pos.x - dragOffsetX;
+            targetedIcon.position[1] = pos.y - dragOffsetY;
+            
+            // Update position in directory tree
+            updateIconPosition(targetedIcon);
+        } 
+        // If dragging multiple icons
+        else if (selectedIcons.length > 1 && selectedIcons.includes(targetedIcon)) {
+            const deltaX = pos.x - (targetedIcon.position[0] + dragOffsetX);
+            const deltaY = pos.y - (targetedIcon.position[1] + dragOffsetY);
+            
+            // Move all selected icons
+            selectedIcons.forEach(icon => {
+                icon.position[0] += deltaX;
+                icon.position[1] += deltaY;
+                
+                // Update position in directory tree
+                updateIconPosition(icon);
+            });
+            
+            // Update drag offset to prevent acceleration
+            dragOffsetX = pos.x - targetedIcon.position[0];
+            dragOffsetY = pos.y - targetedIcon.position[1];
+        }
     }
 });
 
 canvas.addEventListener('mouseup', (e) => {
-    if (isDragging && targetedIcon) {
-        const pos = getMousePos(canvas, e);
-        
+    const pos = getMousePos(canvas, e);
+    
+    if (isSelecting) {
+        isSelecting = false;
+    } else if (isDragging && selectedIcons.length > 0) {
         // Check if dropped on a folder
-        if (targetedIcon.type === "file") {
-            for (const icon of desktopIcons) {
-                if (icon.type === "folder" && 
-                    icon !== targetedIcon && 
-                    icon.isPointInside(pos.x, pos.y)) {
-                    
-                    // Move file to folder
-                    moveIconToFolder(targetedIcon, icon);
-                    break;
-                }
+        for (const icon of desktopIcons) {
+            if (icon.type === "folder" && 
+                !selectedIcons.includes(icon) && 
+                icon.isPointInside(pos.x, pos.y)) {
+                
+                // Move all selected files to folder
+                selectedIcons.forEach(selectedIcon => {
+                    if (selectedIcon.type === "file") {
+                        moveIconToFolder(selectedIcon, icon);
+                    }
+                });
+                
+                // Clear selection after moving
+                selectedIcons = [];
+                break;
             }
         }
     }
     
     isDragging = false;
 });
+
+document.addEventListener('mouseup', (e) => {
+    if (isSelecting) {
+        isSelecting = false;
+        
+        // Clear selection if no icons were selected
+        if (selectedIcons.length === 0) {
+            desktopIcons.forEach(icon => {
+                icon.highlighted = false;
+            });
+        }
+    }
+
+})
 
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -111,10 +242,28 @@ canvas.addEventListener('contextmenu', (e) => {
     let clickedOnIcon = false;
     for (let i = desktopIcons.length - 1; i >= 0; i--) {
         if (desktopIcons[i].isPointInside(pos.x, pos.y)) {
+            // If right-clicking on a selected icon, keep the selection
+            if (!selectedIcons.includes(desktopIcons[i])) {
+                // Clear previous selection
+                selectedIcons.forEach(icon => {
+                    icon.highlighted = false;
+                });
+                selectedIcons = [desktopIcons[i]];
+                desktopIcons[i].highlighted = true;
+            }
+            
             targetedIcon = desktopIcons[i];
             clickedOnIcon = true;
             break;
         }
+    }
+    
+    // If right-clicking on empty space, clear selection
+    if (!clickedOnIcon) {
+        selectedIcons.forEach(icon => {
+            icon.highlighted = false;
+        });
+        selectedIcons = [];
     }
     
     // Show context menu
@@ -128,7 +277,8 @@ canvas.addEventListener('contextmenu', (e) => {
     const cutButton = document.getElementById('cutButton');
     
     if (clickedOnIcon) {
-        if (targetedIcon.type === "file") {
+        // Only show edit button if a single file is selected
+        if (selectedIcons.length === 1 && targetedIcon.type === "file") {
             editButton.style.display = 'block';
         } else {
             editButton.style.display = 'none';
@@ -407,6 +557,26 @@ function applySavedBackground() {
             canvas.style.backgroundPosition = 'center';
         }
     }
+}
+// Helper function to get selection rectangle coordinates
+function getSelectionRect() {
+    return {
+        x: Math.min(selectionStart.x, selectionEnd.x),
+        y: Math.min(selectionStart.y, selectionEnd.y),
+        width: Math.abs(selectionEnd.x - selectionStart.x),
+        height: Math.abs(selectionEnd.y - selectionStart.y)
+    };
+}
+
+// Helper function to check if an icon is inside the selection rectangle
+function isIconInSelectionRect(icon, rect) {
+    // Check if any part of the icon overlaps with the selection rectangle
+    return (
+        icon.position[0] < rect.x + rect.width &&
+        icon.position[0] + icon.width > rect.x &&
+        icon.position[1] < rect.y + rect.height &&
+        icon.position[1] + icon.height > rect.y
+    );
 }
 
 // Call on page load

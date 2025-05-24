@@ -462,23 +462,45 @@ function updateItemByPath(itemPath, newItemProperties) {
 
 // Delete app
 function deleteItem() {
-    path = current_context[".meta_data"].path + "/" + targetedIcon.name;
-
-    const parent = deleteByPath(path);
-
-    // Update local storage
-    setTree();
-
-    // Reload icons
-    loadDesktopIcons();
+    if (selectedIcons.length === 0) return;
     
-    if(parent['.meta_data']['path'] !== "/Desktop") {
-        refreshFolderWindow(parent[".meta_data"].path);
+    // If multiple icons are selected, confirm deletion
+    if (selectedIcons.length > 1) {
+        showConfirmation(`Delete ${selectedIcons.length} items?`, () => {
+            // Delete all selected icons
+            selectedIcons.forEach(icon => {
+                const path = current_context[".meta_data"].path + "/" + icon.name;
+                deleteByPath(path);
+            });
+            
+            // Clear selection
+            selectedIcons = [];
+            
+            // Update local storage
+            setTree();
+            
+            // Reload icons
+            loadDesktopIcons();
+            
+            hideContextMenu();
+        });
+    } else {
+        // Single icon deletion (original behavior)
+        const path = current_context[".meta_data"].path + "/" + targetedIcon.name;
+        const parent = deleteByPath(path);
+        
+        // Update local storage
+        setTree();
+        
+        // Reload icons
+        loadDesktopIcons();
+        
+        if(parent && parent['.meta_data']['path'] !== "/Desktop") {
+            refreshFolderWindow(parent[".meta_data"].path);
+        }
+        
+        hideContextMenu();
     }
-
-
-    
-    hideContextMenu();
 }
 
 
@@ -587,6 +609,18 @@ function drawDesktop() {
         icon.draw(ctx);
     });
     
+    // Draw selection box if active
+    if (isSelecting) {
+        const rect = getSelectionRect();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.fillStyle = 'rgba(65, 105, 225, 0.2)';
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.setLineDash([]);
+    }
+    
     // Request next frame
     requestAnimationFrame(drawDesktop);
 }
@@ -640,9 +674,20 @@ function updateChildPaths(folder, parentPath) {
 // clipboard functionality
 // Cut function
 function cutItem() {
-    if (targetedIcon) {
-       
-        // Get the item
+    if(current_context[".meta_data"].path !== "/Desktop") {
+        if(targetedIcon){
+            clipboardItem = {
+                name: targetedIcon.name,
+                path: current_context[".meta_data"].path + "/" + targetedIcon.name,
+            }
+        }
+        return;
+    }
+    
+    else if (selectedIcons.length === 0) return;
+    
+    // If only one icon is selected, use original behavior
+    if (selectedIcons.length === 1) {
         const item = current_context[targetedIcon.name];
         if (!item) return;
         
@@ -650,11 +695,25 @@ function cutItem() {
             name: targetedIcon.name,
             path: item[".meta_data"].path,
         };
-
-        
-        hideContextMenu();
+    } else {
+        // For multiple selections, store an array of items
+        clipboardItem = {
+            isMultiple: true,
+            items: selectedIcons.map(icon => {
+                const item = current_context[icon.name];
+                if (!item) return null;
+                
+                return {
+                    name: icon.name,
+                    path: item[".meta_data"].path
+                };
+            }).filter(item => item !== null) // Remove any null items
+        };
     }
+    
+    hideContextMenu();
 }
+
 
 // Paste function
 function pasteItem(e) {
@@ -663,38 +722,72 @@ function pasteItem(e) {
     // Determine target folder path
     let targetPath = current_context[".meta_data"].path;
     
-    // Get source item
-    const sourceItem = getObjectByPath(clipboardItem.path);
-    if (!sourceItem) return;
-    
-    // Get target folder
-    const targetFolder = getObjectByPath(targetPath);
-    if (!targetFolder) return;
-    
-    // Check if target is a subfolder of source (prevent recursive paste)
-    if (sourceItem[".meta_data"].type === "folder" && 
-        targetPath.startsWith(clipboardItem.path)) {
-        showError("Cannot paste a folder into itself or its subfolders.");
-        return;
+    if (clipboardItem.isMultiple) {
+        // Handle multiple items
+        clipboardItem.items.forEach(item => {
+            // Get source item
+            const sourceItem = getObjectByPath(item.path);
+            if (!sourceItem) return;
+            
+            // Get target folder
+            const targetFolder = getObjectByPath(targetPath);
+            if (!targetFolder) return;
+            
+            // Check if target is a subfolder of source (prevent recursive paste)
+            if (sourceItem[".meta_data"].type === "folder" && 
+                targetPath.startsWith(item.path)) {
+                showError(`Cannot paste folder "${item.name}" into itself or its subfolders.`);
+                return;
+            }
+            
+            // Check if item with same name already exists in target
+            if (targetFolder[item.name]) {
+                showError(`A file or folder named "${item.name}" already exists at the destination.`);
+                return;
+            }
+            
+            // Move the item
+            moveByPath(item.path, targetPath);
+            
+            // if we are pasting on the desktop, set position to mouse position
+            if (targetPath === "/Desktop") {
+                const pos = getMousePos(canvas, e);
+                targetFolder[item.name][".meta_data"].position = [
+                    pos.x - 40 + Math.random() * 50, // Add some randomness to prevent overlap
+                    pos.y - 50 + Math.random() * 50
+                ];
+            }
+        });
+    } else {
+        // Original single item paste logic
+        const sourceItem = getObjectByPath(clipboardItem.path);
+        if (!sourceItem) return;
+        
+        const targetFolder = getObjectByPath(targetPath);
+        if (!targetFolder) return;
+        
+        if (sourceItem[".meta_data"].type === "folder" && 
+            targetPath.startsWith(clipboardItem.path)) {
+            showError("Cannot paste a folder into itself or its subfolders.");
+            return;
+        }
+        
+        if (targetFolder[clipboardItem.name]) {
+            showError(`A file or folder named "${clipboardItem.name}" already exists at the destination.`);
+            return;
+        }
+        
+        moveByPath(clipboardItem.path, targetPath);
+        
+        if (targetPath === "/Desktop") {
+            const pos = getMousePos(canvas, e);
+            targetFolder[clipboardItem.name][".meta_data"].position = [
+                pos.x - 40,
+                pos.y - 50
+            ];
+        }
     }
     
-    // Check if item with same name already exists in target
-    if (targetFolder[clipboardItem.name]) {
-        showError(`A file or folder named "${clipboardItem.name}" already exists at the destination.`);
-        return;
-    }
-    
-    // Move the item
-    moveByPath(clipboardItem.path, targetPath);
-
-    // if we are pasting on the desktop, set position to mouse position
-    if (targetPath === "/Desktop") {
-        const pos = getMousePos(canvas, e);
-        targetFolder[clipboardItem.name][".meta_data"].position = [
-            pos.x - 40,
-            pos.y - 50
-        ];
-    }
     // Clear clipboard
     clipboardItem = null;
     hideContextMenu();
