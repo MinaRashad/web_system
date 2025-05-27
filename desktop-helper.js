@@ -461,9 +461,7 @@ function updateItemByPath(itemPath, newItemProperties) {
 
 
 // Delete app
-function deleteItem() {
-    if (selectedIcons.length === 0) return;
-    
+function deleteItem() {    
     // If multiple icons are selected, confirm deletion
     if (selectedIcons.length > 1) {
         showConfirmation(`Delete ${selectedIcons.length} items?`, () => {
@@ -485,6 +483,7 @@ function deleteItem() {
             hideContextMenu();
         });
     } else {
+        if(!targetedIcon) return;
         // Single icon deletion (original behavior)
         const path = current_context[".meta_data"].path + "/" + targetedIcon.name;
         const parent = deleteByPath(path);
@@ -1464,11 +1463,25 @@ function moveIconToFolder(icon, folder) {
         return;
     }
     
+    // Check if trying to move a folder into itself or its subfolder
+    if (icon.type === "folder") {
+        const iconPath = `/Desktop/${icon.name}`;
+        if (destPath.startsWith(iconPath)) {
+            showError(`Cannot move folder "${icon.name}" into itself or its subfolders.`);
+            return;
+        }
+    }
+    
     // Move the item
     destFolder[icon.name] = sourceFolder[icon.name];
     
     // Update the path in metadata
     destFolder[icon.name][".meta_data"].path = `${destPath}/${icon.name}`;
+    
+    // If it's a folder, update paths of all children recursively
+    if (icon.type === "folder") {
+        updateChildPaths(destFolder[icon.name], `${destPath}/${icon.name}`);
+    }
     
     // Remove from source folder
     delete sourceFolder[icon.name];
@@ -1479,5 +1492,125 @@ function moveIconToFolder(icon, folder) {
     loadDesktopIcons();
 }
 
+// Add event listeners for drag and drop between windows
+function setupWindowDragDrop() {
+    // Event delegation for folder windows
+    document.addEventListener('mousedown', (e) => {
+        const fileIcon = e.target.closest('.file-icon');
+        const folderWindow = e.target.closest('.folder-window');
+        
+        if (fileIcon && folderWindow) {
+            // Store the source information
+            const dragData = {
+                name: fileIcon.dataset.name,
+                path: fileIcon.dataset.path,
+                type: fileIcon.dataset.type,
+                sourceWindow: folderWindow,
+                sourcePath: folderWindow.dataset.path,
+                icon: fileIcon.dataset.icon,
+                link: fileIcon.dataset.link
+            };
+            
+            // Create a visual drag element
+            const dragElement = document.createElement('div');
+            dragElement.className = 'dragging-element';
+            dragElement.textContent = fileIcon.dataset.icon;
+            dragElement.style.position = 'absolute';
+            dragElement.style.pointerEvents = 'none';
+            dragElement.style.zIndex = '9999';
+            dragElement.style.opacity = '0.7';
+            dragElement.style.fontSize = '24px';
+            document.body.appendChild(dragElement);
+            
+            // Position the drag element
+            const updateDragPosition = (moveEvent) => {
+                dragElement.style.left = (moveEvent.clientX + 10) + 'px';
+                dragElement.style.top = (moveEvent.clientY + 10) + 'px';
+            };
+            
+            updateDragPosition(e);
+            
+            // Track mouse movement
+            const mouseMoveHandler = (moveEvent) => {
+                updateDragPosition(moveEvent);
+            };
+            
+            // Handle drop
+            const mouseUpHandler = (upEvent) => {
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+                
+                // Remove drag element
+                if (dragElement.parentNode) {
+                    dragElement.parentNode.removeChild(dragElement);
+                }
+                
+                // Find drop target
+                const targetElement = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+                
+                // Check if dropped on canvas (desktop)
+                if (targetElement === canvas) {
+                    // Move from folder to desktop
+                    moveItemToDesktop(dragData);
+                } else {
+                    // Check if dropped in another folder window
+                    const targetFolderWindow = targetElement.closest('.folder-window');
+                    const targetFileIcon = targetElement.closest('.file-icon');
+                    console.log(targetFolderWindow, dragData.sourceWindow);
+                    if (targetFolderWindow && targetFolderWindow !== dragData.sourceWindow) {
+                        // Dropped in a different folder window
+                        moveItemBetweenFolders(dragData, targetFolderWindow.dataset.path);
+                    } else if (targetFileIcon && targetFileIcon.dataset.type === 'folder') {
+                        // Dropped on a folder icon within a window
+                        const targetFolderPath = targetFileIcon.dataset.path;
+                        
+                        if(targetFolderPath !== dragData.path) {
+                            moveItemBetweenFolders(dragData, targetFolderPath)
+                        };
+                    }
+                }
+            };
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        }
+    });
+}
+
+// Move item from a folder to the desktop
+function moveItemToDesktop(dragData) {
+    const sourcePath = dragData.path;
+    const sourceItem = getObjectByPath(sourcePath);
+    
+    if (!sourceItem) return;
+    
+
+    moveByPath(sourcePath, "/Desktop");
+    
+    // Set a position on desktop
+    let mouse_pos = getMousePos(canvas, event);
+    directory_tree["Desktop"][dragData.name][".meta_data"].position = [
+        mouse_pos.x - 40 ,
+        mouse_pos.y - 50 
+    ];
+    
+    
+    // Update storage and UI
+    setTree();
+    loadDesktopIcons();
+}
+
+// Move item between folders
+function moveItemBetweenFolders(dragData, targetFolderPath) {
+    const sourcePath = dragData.path;
+    
+    moveByPath(sourcePath, targetFolderPath);
+}
+
+// Initialize window drag-drop when page loads
+window.addEventListener('load', () => {
+    setupWindowDragDrop();
+    // ... existing load handlers ...
+});
 
 

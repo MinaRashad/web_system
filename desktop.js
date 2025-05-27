@@ -200,11 +200,10 @@ canvas.addEventListener('mouseup', (e) => {
                 !selectedIcons.includes(icon) && 
                 icon.isPointInside(pos.x, pos.y)) {
                 
-                // Move all selected files to folder
+                // Move all selected files/folders to folder
                 selectedIcons.forEach(selectedIcon => {
-                    if (selectedIcon.type === "file") {
-                        moveIconToFolder(selectedIcon, icon);
-                    }
+                    // Allow both files and folders to be moved
+                    moveIconToFolder(selectedIcon, icon);
                 });
                 
                 // Clear selection after moving
@@ -215,7 +214,7 @@ canvas.addEventListener('mouseup', (e) => {
     }
     
     isDragging = false;
-});
+}); 
 
 document.addEventListener('mouseup', (e) => {
     if (isSelecting) {
