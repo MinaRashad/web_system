@@ -109,6 +109,7 @@
     <div class="context-menu" id="contextMenu">
         <button onclick="location.reload()">Refresh</button>
         <button onclick="showAddAppPrompt()">Add App</button> 
+        <button onclick="showUploadPrompt()">Upload Files</button>
         <button id="editAppButton" onclick="showEditAppPrompt()" style="display:none;">Edit</button>
         <button id="deleteAppButton" onclick="deleteItem(event)" style="display:none;">Delete</button>
         <button id="cutButton" onclick="cutItem()" style="display:none;">Cut</button>
@@ -154,6 +155,16 @@
         <input type="text" id="emojiSearchInput" placeholder="Search emoji..." oninput="searchEmojis()">
         <div id="emojiList" style="display:grid; grid-template-columns: repeat(auto-fill, 40px);"></div>
         <button onclick="closeEmojiSearch()">Close</button>
+    </div>
+
+    <!-- Upload files prompt -->
+    <div class="prompt" id="uploadPrompt" style="display:none;">
+        <h3>Upload Files</h3>
+        <label for="fileUpload">Select files to upload:</label>
+        <input type="file" id="fileUpload" multiple accept="image/*,text/*,.txt,.md,.json,.js,.html,.css,.py,.java,.cpp,.c,.h">
+        <div id="uploadPreview" style="margin: 10px 0; max-height: 200px; overflow-y: auto;"></div>
+        <button onclick="uploadFiles()">Upload</button>
+        <button onclick="hideUploadPrompt()">Cancel</button>
     </div>
 
     <!-- Template for folder windows -->

@@ -963,6 +963,9 @@ function openAppInWindow(appName, appLink, appIcon) {
     // Append the app window to the body
     document.body.appendChild(appWindow);
     
+    // Add to window tracking
+    addWindowToTracking(appWindow);
+    
     // Add event listeners for dragging the window
     let offsetX, offsetY;
     let isDraggingWindow = false;
@@ -999,6 +1002,7 @@ function openAppInWindow(appName, appLink, appIcon) {
     // Close button
     const closeButton = appWindow.querySelector('.folder-close');
     closeButton.addEventListener('click', () => {
+        removeWindowFromTracking(appWindow);
         appWindow.remove();
     });
     
@@ -1054,6 +1058,9 @@ function openFolder(folderName, folderPath) {
     // Append the folder window to the body
     document.body.appendChild(folderWindow);
     
+    // Add to window tracking
+    addWindowToTracking(folderWindow);
+    
     // Add event listeners for dragging the window
     let offsetX, offsetY;
     let isDraggingWindow = false;
@@ -1085,6 +1092,7 @@ function openFolder(folderName, folderPath) {
     // Close button
     const closeButton = folderWindow.querySelector('.folder-close');
     closeButton.addEventListener('click', () => {
+        removeWindowFromTracking(folderWindow);
         folderWindow.remove();
     });
     
@@ -1662,5 +1670,215 @@ function moveItemBetweenFolders(dragData, targetFolderPath) {
 // Initialize window drag-drop when page loads
 window.addEventListener('load', () => {
     setupWindowDragDrop();
+    setupWindowManagement();
     // ... existing load handlers ...
 });
+
+// Window management variables
+let windowZIndex = 100;
+let openWindows = [];
+let currentWindowIndex = 0;
+
+// Setup window management system
+function setupWindowManagement() {
+    // Track Shift+Tab for window switching
+    document.addEventListener('keydown', (e) => {
+        if (e.shiftKey && e.key === 'Tab') {
+            e.preventDefault();
+            switchToNextWindow();
+        }
+    });
+}
+
+// Bring window to front when clicked
+function bringWindowToFront(windowElement) {
+    windowZIndex += 1;
+    windowElement.style.zIndex = windowZIndex;
+    
+    // Update the window order in our tracking array
+    const index = openWindows.indexOf(windowElement);
+    if (index > -1) {
+        openWindows.splice(index, 1);
+        openWindows.push(windowElement);
+        currentWindowIndex = openWindows.length - 1;
+    }
+}
+
+// Switch to next window with Shift+Tab
+function switchToNextWindow() {
+    if (openWindows.length === 0) return;
+    
+    currentWindowIndex = (currentWindowIndex + 1) % openWindows.length;
+    const nextWindow = openWindows[currentWindowIndex];
+    
+    if (nextWindow && document.body.contains(nextWindow)) {
+        bringWindowToFront(nextWindow);
+        // Add a visual indication that the window is focused
+        nextWindow.style.boxShadow = '0 0 20px rgba(0, 123, 255, 0.8)';
+        setTimeout(() => {
+            nextWindow.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.5)';
+        }, 500);
+    } else {
+        // Remove invalid window from array
+        openWindows.splice(currentWindowIndex, 1);
+        if (currentWindowIndex >= openWindows.length) {
+            currentWindowIndex = 0;
+        }
+        if (openWindows.length > 0) {
+            switchToNextWindow();
+        }
+    }
+}
+
+// Add window to tracking when opened
+function addWindowToTracking(windowElement) {
+    openWindows.push(windowElement);
+    currentWindowIndex = openWindows.length - 1;
+    bringWindowToFront(windowElement);
+    
+    // Add click listener to bring window to front
+    windowElement.addEventListener('mousedown', () => {
+        bringWindowToFront(windowElement);
+    });
+}
+
+// Remove window from tracking when closed
+function removeWindowFromTracking(windowElement) {
+    const index = openWindows.indexOf(windowElement);
+    if (index > -1) {
+        openWindows.splice(index, 1);
+        if (currentWindowIndex >= openWindows.length) {
+            currentWindowIndex = Math.max(0, openWindows.length - 1);
+        }
+    }
+}
+
+// Upload functionality
+function showUploadPrompt() {
+    document.getElementById('uploadPrompt').style.display = 'block';
+    
+    // Add file input change listener for preview
+    const fileInput = document.getElementById('fileUpload');
+    fileInput.addEventListener('change', previewUploadFiles);
+}
+
+function hideUploadPrompt() {
+    document.getElementById('uploadPrompt').style.display = 'none';
+    document.getElementById('fileUpload').value = '';
+    document.getElementById('uploadPreview').innerHTML = '';
+}
+
+function previewUploadFiles() {
+    const fileInput = document.getElementById('fileUpload');
+    const preview = document.getElementById('uploadPreview');
+    preview.innerHTML = '';
+    
+    if (fileInput.files.length === 0) return;
+    
+    const fileList = document.createElement('div');
+    fileList.innerHTML = '<strong>Files to upload:</strong><br>';
+    
+    Array.from(fileInput.files).forEach(file => {
+        const fileItem = document.createElement('div');
+        fileItem.style.margin = '5px 0';
+        fileItem.style.padding = '5px';
+        fileItem.style.backgroundColor = '#f0f0f0';
+        fileItem.style.borderRadius = '3px';
+        
+        const icon = getFileIcon(file.type, file.name);
+        fileItem.innerHTML = `${icon} ${file.name} (${formatFileSize(file.size)})`;
+        
+        fileList.appendChild(fileItem);
+    });
+    
+    preview.appendChild(fileList);
+}
+
+function getFileIcon(mimeType, fileName) {
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType.startsWith('text/')) return '📄';
+    
+    const ext = fileName.split('.').pop().toLowerCase();
+    switch (ext) {
+        case 'txt': return '📄';
+        case 'md': return '📝';
+        case 'json': return '📋';
+        case 'js': return '📜';
+        case 'html': return '🌐';
+        case 'css': return '🎨';
+        case 'py': return '🐍';
+        case 'java': return '☕';
+        case 'cpp': case 'c': case 'h': return '⚙️';
+        default: return '📄';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function uploadFiles() {
+    const fileInput = document.getElementById('fileUpload');
+    const files = fileInput.files;
+    
+    if (files.length === 0) {
+        showError('Please select files to upload.');
+        return;
+    }
+    
+    const currentPath = current_context['.meta_data'].path;
+    let uploadedCount = 0;
+    
+    Array.from(files).forEach((file, index) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const fileName = file.name;
+            const fileIcon = getFileIcon(file.type, fileName);
+            let fileContent = e.target.result;
+            
+            // For text files, store as data URL for easy opening
+            if (file.type.startsWith('text/') || 
+                fileName.endsWith('.txt') || 
+                fileName.endsWith('.md') || 
+                fileName.endsWith('.json') || 
+                fileName.endsWith('.js') || 
+                fileName.endsWith('.html') || 
+                fileName.endsWith('.css') || 
+                fileName.endsWith('.py') || 
+                fileName.endsWith('.java') || 
+                fileName.endsWith('.cpp') || 
+                fileName.endsWith('.c') || 
+                fileName.endsWith('.h')) {
+                
+                // Convert to data URL for text files
+                fileContent = `data:text/plain;charset=utf-8,${encodeURIComponent(e.target.result)}`;
+            }
+            // For images, fileContent is already a data URL
+            
+            // Add the file to the desktop
+            addApp(fileName, fileIcon, fileContent, currentPath);
+            
+            uploadedCount++;
+            if (uploadedCount === files.length) {
+                showInfo(`Successfully uploaded ${uploadedCount} file(s) to ${currentPath}`);
+                hideUploadPrompt();
+            }
+        };
+        
+        reader.onerror = function() {
+            showError(`Failed to read file: ${file.name}`);
+        };
+        
+        // Read file based on type
+        if (file.type.startsWith('image/')) {
+            reader.readAsDataURL(file);
+        } else {
+            reader.readAsText(file);
+        }
+    });
+}
