@@ -1274,6 +1274,58 @@ function saveEditApp() {
 
 }
 
+let emojis = [];
+
+async function fetchEmojis() {
+    if (emojis.length > 0) return;
+    try {
+        const response = await fetch('https://unpkg.com/emoji.json@13.1.0/emoji.json');
+        emojis = await response.json();
+    } catch (error) {
+        console.error('Failed to fetch emojis:', error);
+        showError('Failed to load emojis. Please try again later.');
+    }
+}
+
+function openEmojiSearch(inputId) {
+    fetchEmojis().then(() => {
+        document.getElementById('emojiSearchModal').style.display = 'block';
+        document.getElementById('emojiSearchInput').focus();
+        window.currentEmojiInputId = inputId;
+        searchEmojis();
+    });
+}
+
+function closeEmojiSearch() {
+    document.getElementById('emojiSearchModal').style.display = 'none';
+    document.getElementById('emojiSearchInput').value = '';
+    searchEmojis();
+}
+
+function searchEmojis() {
+    const search = document.getElementById('emojiSearchInput').value.toLowerCase();
+    const list = document.getElementById('emojiList');
+    list.innerHTML = '';
+    const filtered = emojis.filter(emoji => 
+        (emoji.name && emoji.name.toLowerCase().includes(search)) ||
+        (emoji.codes && emoji.codes.toLowerCase().includes(search))
+    );
+    filtered.forEach(emoji => {
+        const button = document.createElement('button');
+        button.textContent = emoji.char;
+        button.title = emoji.name;
+        button.style.fontSize = '24px';
+        button.style.border = 'none';
+        button.style.background = 'none';
+        button.style.cursor = 'pointer';
+        button.onclick = () => {
+            document.getElementById(window.currentEmojiInputId).value = emoji.char;
+            closeEmojiSearch();
+        };
+        list.appendChild(button);
+    });
+}
+
 // Add showInfo function for non-error messages
 function showInfo(message) {
     // Create info window (similar to error but with different styling)
@@ -1612,5 +1664,3 @@ window.addEventListener('load', () => {
     setupWindowDragDrop();
     // ... existing load handlers ...
 });
-
-

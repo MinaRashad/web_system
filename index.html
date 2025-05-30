@@ -120,8 +120,9 @@
     <div class="prompt" id="addAppPrompt">
         <label for="appName">App Name:</label>
         <input type="text" id="appName">
-        <label for="appIcon">App Icon:</label>
-        <input type="text" id="appIcon">
+    <label for="appIcon">App Icon:</label>
+    <input type="text" id="appIcon">
+    <button onclick="openEmojiSearch('appIcon')">Search Emoji</button>
         <label for="appLink">App Link:</label>
         <input type="text" id="appLink">
         <button onclick="addAppbtn();">Add</button>
@@ -138,14 +139,21 @@
     <div class="prompt" id="editAppPrompt">
         <label for="editAppName">App Name:</label>
         <input type="text" id="editAppName">
-        <label for="editAppIcon">App Icon:</label>
-        <input type="text" id="editAppIcon">
+    <label for="editAppIcon">App Icon:</label>
+    <input type="text" id="editAppIcon">
+    <button onclick="openEmojiSearch('editAppIcon')">Search Emoji</button>
         <label for="editAppLink">App Link:</label>
         <input type="text" id="editAppLink">
         <button onclick="saveEditApp();">Save</button>
         <button onclick="hideEditAppPrompt()">Cancel</button>
         <!-- if base64, open in developer -->
         <button id="openInDevBtn" onclick="openInDev()">Open in Developer</button>
+    </div>
+
+    <div id="emojiSearchModal" class="prompt" style="display:none; width:400px; height:400px; overflow:auto;">
+        <input type="text" id="emojiSearchInput" placeholder="Search emoji..." oninput="searchEmojis()">
+        <div id="emojiList" style="display:grid; grid-template-columns: repeat(auto-fill, 40px);"></div>
+        <button onclick="closeEmojiSearch()">Close</button>
     </div>
 
     <!-- Template for folder windows -->
@@ -165,4 +173,3 @@
     <script src="desktop.js"></script>
 </body>
 </html>
-
